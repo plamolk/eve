@@ -404,6 +404,8 @@ INSERT INTO summary (k, last_id, data, updated) VALUES (1, 0, '{}', 0);
 5. **Apps Script** + README
 6. **E2E ครบชุด** + วัดน้ำหนักหน้า + รายงาน + ตารางโควตาที่วัดจริง + `docs/operations.md`
 
+**ขอบเขตการยืนยันการลบ:** ถ้าผู้ใช้อนุมัติ spec นี้ ถือว่ายืนยันการลบเฉพาะ 2 กลุ่ม (ก) path เดิมที่เนื้อหาถูกย้ายหรือรวมไปไว้ที่อื่นในขั้นที่ 1 (`git mv`, `js/app.js` + `js/pages/survey.js` → `survey.js`, `js/pages/intro.js` → `index.html`, `js/data/questions.js` → common/staff/donor, `css/styles.css` → `src/styles.css`) และ (ข) ไฟล์ข้อมูลจำลองที่ prompt สั่งลบในขั้นที่ 2 (`mock-summary.js`, `pages/summary.js`, `pages/thanks.js`) ไฟล์และโค้ดอื่นทั้งหมดต้องผ่านตารางในขั้นที่ 3 ก่อน
+
 การ deploy ขึ้น Cloudflare และติดตั้ง Apps Script ผู้ใช้ต้องทำเองด้วยบัญชีของตัวเอง (`wrangler login`, `wrangler d1 create`, `wrangler secret put`, `wrangler deploy`) ซึ่งเอกสารจะมีคำสั่งให้ครบ
 
 ## 15. สิ่งที่ส่งมอบ (เทียบกับ prompt)

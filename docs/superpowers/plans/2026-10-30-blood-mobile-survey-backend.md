@@ -23,7 +23,7 @@
 - ไม่บันทึก IP หรือ User-Agent ลงที่เก็บใด ๆ
 - ทุก commit ใช้ `git -c user.name=plamolk -c user.email=nongvigo1234@gmail.com commit …` และท้ายข้อความมี 2 บรรทัด:
   `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>` และ `Claude-Session: https://claude.ai/code/session_01227fSaWviR7iidFB5zUcgo` (คำสั่ง commit ในแต่ละ task เขียนย่อไว้)
-- `git add` ระบุไฟล์ทุกครั้ง ห้ามใช้ `git add -A` เพราะ `backend-prompt.md`, `img/` และ `Claude outputs/` ต้องไม่อยู่ใน git
+- `git add` ระบุไฟล์ทุกครั้ง ห้ามใช้ `git add -A` (ตั้งแต่ commit `cc4c915 file2` ของผู้ใช้ ไฟล์ `backend-prompt.md`, `img/bus-map.jpg` และ `Claude outputs/svg1.png` อยู่ใน git แล้ว ถ้าจะลบสองไฟล์หลังต้องใช้ `git rm` ใน Task 9 หลังผู้ใช้อนุมัติเท่านั้น)
 
 **สภาพแวดล้อมตอนรัน:** repo อยู่ที่ `C:\eve` บนเครื่องผู้ใช้ งานแก้โค้ด, `npm`, `wrangler` และ vitest รันที่นั่น ส่วน Playwright ต้องมี Chromium ถ้าเครื่องที่รันไม่มี ให้ใช้ `npx playwright install chromium` (หรือรันบนเครื่องที่มี Chromium รุ่นของ Playwright 1.63.0 ติดตั้งอยู่แล้ว โดยใช้สำเนาของ working tree)
 
@@ -39,7 +39,9 @@
 
 ## Phase 0 — ขั้นที่ 0
 
-### Task 1: Snapshot งานค้าง + ทำ line ending ให้คงที่
+### Task 1: ทำ line ending ให้คงที่
+
+ผู้ใช้ commit เนื้อหางานที่ค้างไว้เองแล้วใน `cc4c915 file2` ไฟล์ ` M` ที่เหลืออีก 16 ไฟล์ต่างจาก commit แค่ line ending (index เป็น LF, working tree เป็น CRLF) จึงไม่ต้องทำ snapshot commit
 
 **Files:**
 - Create: `.gitattributes`
@@ -47,14 +49,10 @@
 
 **Interfaces:** ไม่มี
 
-- [ ] **Step 1: ตรวจสถานะก่อนเริ่ม**
-  Run: `git status --short`
-  Expected: มีบรรทัด ` M` 16 บรรทัด และ `??` 3 บรรทัด (`Claude outputs/`, `backend-prompt.md`, `img/`)
-- [ ] **Step 2: Commit snapshot (เฉพาะไฟล์ที่อยู่ใน git อยู่แล้ว)**
-  ```bash
-  git add -u
-  git commit -m "chore: snapshot pending frontend work before restructure"
-  ```
+- [ ] **Step 1: ยืนยันว่าเหลือแค่ความต่างเรื่อง line ending**
+  Run: `git diff --ignore-cr-at-eol --stat`
+  Expected: ไม่มี output (ถ้ามี ให้หยุดแล้วถามผู้ใช้ เพราะแปลว่ามีงานใหม่ที่ยังไม่ commit)
+- [ ] **Step 2: (ข้าม ไม่ต้องทำ snapshot commit)**
 - [ ] **Step 3: สร้าง `.gitattributes`**
   ```
   * text=auto eol=lf
@@ -71,6 +69,8 @@
   Expected: มีแค่ `.gitattributes`
   Run: `git ls-files --eol | grep -c crlf`
   Expected: `0`
+  Run: `git status --short`
+  Expected: มีแค่ `A  .gitattributes`
 - [ ] **Step 6: Commit**
   `git commit -m "chore: normalize line endings to LF via .gitattributes"`
 
@@ -602,7 +602,7 @@
   - `createMeter() -> { rw, rr, run(stmt) -> Promise<D1Result>, batch(db, stmts) -> Promise<D1Result[]> }` บวก `meta.rows_written/rows_read` สะสมไว้
   - `dayKey(date = new Date()) -> number`: YYYYMMDD ตามเวลา UTC
   - `insertResponse(m, db, {cid, role, data, created, src}) -> Promise<boolean>`: `INSERT … ON CONFLICT(cid) DO NOTHING` และคืน `meta.changes === 1`
-  - `bumpUsage(db, m, n, day) -> Promise<{day, rw, rr}>`: UPSERT ด้วย `rw = m.rw + 1` แล้วอ่านค่าจาก `RETURNING rw, rr`
+  - `bumpUsage(db, m, n, day) -> Promise<{day, rw, rr}>`: UPSERT ด้วย `rw = m.rw + 1` แล้วอ่านค่าจาก `RETURNING rw, rr` และเรียก `rememberUsage(ผลลัพธ์)` ภายในฟังก์ชันเอง ทุกคำขอที่แตะ D1 จึงอัปเดตค่าที่ isolate จำไว้ด้วย
   - `usageToday(m, db, day) -> Promise<{day, rw, rr, n}>`: คืนค่า 0 ทุกช่องถ้ายังไม่มีแถว
   - `rememberUsage(u)`, `knownUsage(day) -> u|null` (เก็บในหน่วยความจำของ module) และ `overQuota(u, env) -> boolean` (`u.rw >= ratio*D1_WRITE_LIMIT || u.rr >= ratio*D1_READ_LIMIT`)
   - `src/index.js`: export default `Hono` app
@@ -632,7 +632,7 @@
 - [ ] **Step 1: เขียน test ที่ต้อง fail** (`tests/worker/store.test.js`)
   - INSERT แรกคืน `true` และ `m.rw === 2` (ยืนยันว่าได้ 1 แถว + 1 แถวของ index cid) ถ้า D1 ในเครื่องรายงานค่าอื่น ให้บันทึกค่าจริงไว้ใน report และแก้ตัวเลขใน Task 18
   - INSERT ซ้ำด้วย cid เดิม → `false` และแถวยังมีแค่ 1 แถว
-  - เรียก `bumpUsage` 2 ครั้ง → `rw` และ `n` สะสมขึ้น
+  - เรียก `bumpUsage` 2 ครั้ง → `rw` และ `n` สะสมขึ้น และหลังเรียกแล้ว `knownUsage(day)` ต้องเท่ากับค่าที่ `bumpUsage` คืนครั้งล่าสุด
   - `dayKey(new Date('2026-10-30T23:59:59Z')) === 20261030` และ `dayKey(new Date('2026-10-31T00:00:00Z')) === 20261031`
   - `overQuota({rw:79999,rr:0}, env) === false` และ `overQuota({rw:80000,rr:0}, env) === true` ส่วน `rr` 4000000 → `true`
   - `GET /api/nope` → 404 `{error:'not_found'}`
@@ -682,7 +682,7 @@
 
     - ตรวจ 413 จาก header `content-length` และจากความยาว bytes ของ body ที่อ่านได้
     - เก็บ `data` เป็น `JSON.stringify(env.data)` และ `created = Math.floor(Date.now()/1000)`
-    - ข้อ 6 ใช้ `knownUsage(dayKey())` และหลัง `bumpUsage` ต้องเรียก `rememberUsage(ผลลัพธ์)` ทุกครั้ง
+    - ข้อ 6 ใช้ `knownUsage(dayKey())` (`bumpUsage` อัปเดตค่านี้ให้เอง)
 
 - [ ] **Step 1: เขียน test ที่ต้อง fail** (`tests/worker/submit.test.js`)
   ใช้ `vi.spyOn(globalThis,'fetch')` ตอบ siteverify และ Sheets ตามแต่ละกรณี:
@@ -722,7 +722,7 @@
     - `knownUsage` ถึงเกณฑ์ → 503 `{error:'quota'}`
     - แต่ละรายการตรวจ uuid ของ cid + `validateData` + `received` ต้องเป็น integer ที่ไม่เกิน `now + 300` ถ้าไม่ผ่านจะอยู่ใน `rejected: [{cid, field}]`
     - รายการที่ผ่านใช้ `db.batch` INSERT ด้วย `src=1` และ `created=received` cid ที่มีอยู่แล้วก็นับเป็น `accepted` ด้วย
-    - `bumpUsage` ด้วย n = จำนวนที่ insert จริง แล้ว `rememberUsage(ผลลัพธ์)`
+    - `bumpUsage` ด้วย n = จำนวนที่ insert จริง
     - คืน 200 `{accepted:[cid], rejected}`
 
 - [ ] **Step 1: เขียน test ที่ต้อง fail**
@@ -914,12 +914,12 @@
     2. `usageNow()` ก่อน/หลัง `GET /api/admin/summary` 1 ครั้ง (ต้องมีแถวใหม่ที่ยังไม่ถูกรวม) → `adminOpenRw` และ `adminOpenRr`
     3. `new TextEncoder().encode(JSON.stringify(fixture)).length` → `staffFullBytes` และ `donorFullBytes`
     4. เขียนลง `measurements.json`
-  - `over-quota goes to Sheets and import syncs it back` (**ต้องเป็น test สุดท้ายของไฟล์** ใช้ `test.describe.configure({mode:'serial'})` เพราะค่า usage ที่ isolate จำไว้จะค้างอยู่จนกว่าจะเริ่ม `wrangler dev` ใหม่):
+  - `over-quota goes to Sheets and import syncs it back` (ให้เป็น test สุดท้ายของไฟล์ และใช้ `test.describe.configure({mode:'serial'})`):
     1. `npx wrangler d1 execute eve-survey --local --command "UPDATE usage SET rw=80000 WHERE day=<วันนี้ UTC>"`
     2. ส่ง 2 คำตอบ (คำตอบที่ 2 ต้องได้ 202)
     3. `GET :8790/records` ต้องมี 1 รายการที่ `auth:'worker'`
     4. POST รายการนั้นไป `/api/import` พร้อม `IMPORT_TOKEN` → ต้องได้ 503 `{error:'quota'}` (ยังเกินเกณฑ์)
-    5. `UPDATE usage SET rw=0` แล้วเริ่ม `wrangler dev` ใหม่ (หรือรอให้ `bumpUsage` ของคำขอถัดไปคืนค่าใหม่) จากนั้น POST ซ้ำ → 200 และ `accepted` มี cid นั้น
+    5. `UPDATE usage SET rw=0` → เรียก `GET /api/admin/summary` 1 ครั้ง (`bumpUsage` ในคำขอนั้นจะอัปเดตค่าที่ isolate จำไว้) → POST ซ้ำ → 200 และ `accepted` มี cid นั้น
     6. `responses` มีแถวที่ `src=1`
 - [ ] **Step 2: รันทั้งชุด**
   Run: `cp .dev.vars.example .dev.vars && npm run e2e`
