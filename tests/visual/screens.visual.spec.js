@@ -1,6 +1,5 @@
 // Screens must look the same before and after the restructure.
 // Navigation only clicks visible text, so it works on the old SPA and the new pages.
-// summary-mock is removed in Task 8.
 import { test, expect } from '@playwright/test';
 
 const STAFF = ['A', 'B', 'C', 'D', 'E', 'F'];
@@ -52,9 +51,3 @@ for (const [label, prefix, parts] of [['เจ้าหน้าที่', 'sta
     }
   });
 }
-
-test('summary-mock', async ({ page }) => {
-  await page.goto('/');
-  await page.getByText('ดูตัวอย่างหน้าสรุปผล (ข้อมูลจำลอง)', { exact: true }).click();
-  await step(page, 'summary-mock');
-});
