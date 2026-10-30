@@ -153,9 +153,11 @@ App.data.admin = {
       headers: body ? { 'content-type': 'application/json' } : {},
       body: body ? JSON.stringify(body) : undefined
     });
+    // อ่าน body ให้จบเสมอ (ถ้าไม่อ่าน เบราว์เซอร์จะค้างการเชื่อมต่อของคำตอบ 401 ไว้)
+    const text = await r.text();
     if (r.status === 401) throw Object.assign(new Error('auth'), { auth: true });
     if (!r.ok) throw new Error('http ' + r.status);
-    return r.status === 204 ? null : r.json();
+    return text ? JSON.parse(text) : null;
   }
 
   function failed(e) {

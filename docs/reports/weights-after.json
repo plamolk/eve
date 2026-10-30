@@ -1,0 +1,319 @@
+{
+  "/index.html": {
+    "requests": 3,
+    "bytes": 14883,
+    "encodedBytes": 4500,
+    "resources": [
+      {
+        "url": "http://localhost:8787/index.html",
+        "type": "document",
+        "bytes": 0,
+        "encodedBytes": 0
+      },
+      {
+        "url": "http://localhost:8787/",
+        "type": "document",
+        "bytes": 2327,
+        "encodedBytes": 1014
+      },
+      {
+        "url": "http://localhost:8787/css/app.css",
+        "type": "stylesheet",
+        "bytes": 12556,
+        "encodedBytes": 3486
+      }
+    ]
+  },
+  "/survey.html?role=staff": {
+    "requests": 16,
+    "bytes": 175362,
+    "encodedBytes": 57388,
+    "resources": [
+      {
+        "url": "http://localhost:8787/survey.html?role=staff",
+        "type": "document",
+        "bytes": 0,
+        "encodedBytes": 0
+      },
+      {
+        "url": "http://localhost:8787/survey?role=staff",
+        "type": "document",
+        "bytes": 1400,
+        "encodedBytes": 731
+      },
+      {
+        "url": "http://localhost:8787/css/app.css",
+        "type": "stylesheet",
+        "bytes": 12556,
+        "encodedBytes": 3486
+      },
+      {
+        "url": "http://localhost:8787/js/data/bus-layout.js",
+        "type": "script",
+        "bytes": 5639,
+        "encodedBytes": 2034
+      },
+      {
+        "url": "http://localhost:8787/js/shared/ui.js",
+        "type": "script",
+        "bytes": 4066,
+        "encodedBytes": 1501
+      },
+      {
+        "url": "http://localhost:8787/js/survey/state.js",
+        "type": "script",
+        "bytes": 4674,
+        "encodedBytes": 1612
+      },
+      {
+        "url": "http://localhost:8787/js/config.js",
+        "type": "script",
+        "bytes": 754,
+        "encodedBytes": 491
+      },
+      {
+        "url": "http://localhost:8787/js/components/bus-map.js",
+        "type": "script",
+        "bytes": 15720,
+        "encodedBytes": 5172
+      },
+      {
+        "url": "http://localhost:8787/js/data/common.js",
+        "type": "script",
+        "bytes": 6524,
+        "encodedBytes": 2118
+      },
+      {
+        "url": "http://localhost:8787/js/survey/survey.js",
+        "type": "script",
+        "bytes": 15268,
+        "encodedBytes": 4675
+      },
+      {
+        "url": "http://localhost:8787/js/survey/submit.js",
+        "type": "script",
+        "bytes": 8018,
+        "encodedBytes": 2855
+      },
+      {
+        "url": "http://localhost:8787/js/data/staff.js",
+        "type": "script",
+        "bytes": 7711,
+        "encodedBytes": 2241
+      },
+      {
+        "url": "http://localhost:8787/js/data/body-regions.js",
+        "type": "script",
+        "bytes": 1510,
+        "encodedBytes": 610
+      },
+      {
+        "url": "http://localhost:8787/js/components/body-map.js",
+        "type": "script",
+        "bytes": 4790,
+        "encodedBytes": 1863
+      },
+      {
+        "url": "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit",
+        "type": "script",
+        "bytes": 0,
+        "encodedBytes": 0
+      },
+      {
+        "url": "https://challenges.cloudflare.com/turnstile/v0/g/c787ce48cf6b/api.js",
+        "type": "script",
+        "bytes": 86732,
+        "encodedBytes": 27999
+      }
+    ]
+  },
+  "/survey.html?role=donor": {
+    "requests": 14,
+    "bytes": 166403,
+    "encodedBytes": 54247,
+    "resources": [
+      {
+        "url": "http://localhost:8787/survey.html?role=donor",
+        "type": "document",
+        "bytes": 0,
+        "encodedBytes": 0
+      },
+      {
+        "url": "http://localhost:8787/survey?role=donor",
+        "type": "document",
+        "bytes": 1400,
+        "encodedBytes": 731
+      },
+      {
+        "url": "http://localhost:8787/css/app.css",
+        "type": "stylesheet",
+        "bytes": 12556,
+        "encodedBytes": 3486
+      },
+      {
+        "url": "http://localhost:8787/js/config.js",
+        "type": "script",
+        "bytes": 754,
+        "encodedBytes": 491
+      },
+      {
+        "url": "http://localhost:8787/js/data/bus-layout.js",
+        "type": "script",
+        "bytes": 5639,
+        "encodedBytes": 2034
+      },
+      {
+        "url": "http://localhost:8787/js/data/common.js",
+        "type": "script",
+        "bytes": 6524,
+        "encodedBytes": 2118
+      },
+      {
+        "url": "http://localhost:8787/js/components/bus-map.js",
+        "type": "script",
+        "bytes": 15720,
+        "encodedBytes": 5172
+      },
+      {
+        "url": "http://localhost:8787/js/shared/ui.js",
+        "type": "script",
+        "bytes": 4066,
+        "encodedBytes": 1501
+      },
+      {
+        "url": "http://localhost:8787/js/survey/state.js",
+        "type": "script",
+        "bytes": 4674,
+        "encodedBytes": 1612
+      },
+      {
+        "url": "http://localhost:8787/js/survey/submit.js",
+        "type": "script",
+        "bytes": 8018,
+        "encodedBytes": 2855
+      },
+      {
+        "url": "http://localhost:8787/js/survey/survey.js",
+        "type": "script",
+        "bytes": 15268,
+        "encodedBytes": 4675
+      },
+      {
+        "url": "http://localhost:8787/js/data/donor.js",
+        "type": "script",
+        "bytes": 5052,
+        "encodedBytes": 1510
+      },
+      {
+        "url": "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit",
+        "type": "script",
+        "bytes": 0,
+        "encodedBytes": 0
+      },
+      {
+        "url": "https://challenges.cloudflare.com/turnstile/v0/g/c787ce48cf6b/api.js",
+        "type": "script",
+        "bytes": 86732,
+        "encodedBytes": 28062
+      }
+    ]
+  },
+  "/thanks.html": {
+    "requests": 3,
+    "bytes": 13640,
+    "encodedBytes": 4129,
+    "resources": [
+      {
+        "url": "http://localhost:8787/thanks.html",
+        "type": "document",
+        "bytes": 0,
+        "encodedBytes": 0
+      },
+      {
+        "url": "http://localhost:8787/thanks",
+        "type": "document",
+        "bytes": 1084,
+        "encodedBytes": 643
+      },
+      {
+        "url": "http://localhost:8787/css/app.css",
+        "type": "stylesheet",
+        "bytes": 12556,
+        "encodedBytes": 3486
+      }
+    ]
+  },
+  "/admin.html": {
+    "requests": 11,
+    "bytes": 55430,
+    "encodedBytes": 19111,
+    "resources": [
+      {
+        "url": "http://localhost:8787/admin.html",
+        "type": "document",
+        "bytes": 0,
+        "encodedBytes": 0
+      },
+      {
+        "url": "http://localhost:8787/admin",
+        "type": "document",
+        "bytes": 903,
+        "encodedBytes": 477
+      },
+      {
+        "url": "http://localhost:8787/css/app.css",
+        "type": "stylesheet",
+        "bytes": 12556,
+        "encodedBytes": 3486
+      },
+      {
+        "url": "http://localhost:8787/js/shared/ui.js",
+        "type": "script",
+        "bytes": 4066,
+        "encodedBytes": 1501
+      },
+      {
+        "url": "http://localhost:8787/js/data/body-regions.js",
+        "type": "script",
+        "bytes": 1510,
+        "encodedBytes": 610
+      },
+      {
+        "url": "http://localhost:8787/js/components/bus-map.js",
+        "type": "script",
+        "bytes": 15720,
+        "encodedBytes": 5172
+      },
+      {
+        "url": "http://localhost:8787/js/data/bus-layout.js",
+        "type": "script",
+        "bytes": 5639,
+        "encodedBytes": 2034
+      },
+      {
+        "url": "http://localhost:8787/js/components/body-map.js",
+        "type": "script",
+        "bytes": 4790,
+        "encodedBytes": 1863
+      },
+      {
+        "url": "http://localhost:8787/js/admin/boot.js",
+        "type": "script",
+        "bytes": 121,
+        "encodedBytes": 139
+      },
+      {
+        "url": "http://localhost:8787/js/admin/admin.js",
+        "type": "script",
+        "bytes": 10109,
+        "encodedBytes": 3777
+      },
+      {
+        "url": "http://localhost:8787/api/admin/summary",
+        "type": "fetch",
+        "bytes": 16,
+        "encodedBytes": 52
+      }
+    ]
+  }
+}
