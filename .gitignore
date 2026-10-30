@@ -1,0 +1,7 @@
+node_modules/
+.wrangler/
+.dev.vars
+public/css/app.css
+test-results/
+playwright-report/
+tests/visual/__baseline__/

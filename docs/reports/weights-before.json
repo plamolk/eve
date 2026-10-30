@@ -1,0 +1,105 @@
+{
+  "/index.html": {
+    "requests": 16,
+    "bytes": 477916,
+    "encodedBytes": 197028,
+    "resources": [
+      {
+        "url": "http://localhost:8000/index.html",
+        "type": "document",
+        "bytes": 1962,
+        "encodedBytes": 1962
+      },
+      {
+        "url": "http://localhost:8000/css/styles.css",
+        "type": "stylesheet",
+        "bytes": 1634,
+        "encodedBytes": 1634
+      },
+      {
+        "url": "http://localhost:8000/js/data/body-regions.js",
+        "type": "script",
+        "bytes": 1510,
+        "encodedBytes": 1510
+      },
+      {
+        "url": "http://localhost:8000/js/data/questions.js",
+        "type": "script",
+        "bytes": 17451,
+        "encodedBytes": 17451
+      },
+      {
+        "url": "http://localhost:8000/js/data/mock-summary.js",
+        "type": "script",
+        "bytes": 2104,
+        "encodedBytes": 2104
+      },
+      {
+        "url": "http://localhost:8000/js/state.js",
+        "type": "script",
+        "bytes": 3774,
+        "encodedBytes": 3774
+      },
+      {
+        "url": "http://localhost:8000/js/data/bus-layout.js",
+        "type": "script",
+        "bytes": 5639,
+        "encodedBytes": 5639
+      },
+      {
+        "url": "http://localhost:8000/js/components/ui.js",
+        "type": "script",
+        "bytes": 3488,
+        "encodedBytes": 3488
+      },
+      {
+        "url": "http://localhost:8000/js/components/body-map.js",
+        "type": "script",
+        "bytes": 4790,
+        "encodedBytes": 4790
+      },
+      {
+        "url": "http://localhost:8000/js/pages/intro.js",
+        "type": "script",
+        "bytes": 919,
+        "encodedBytes": 919
+      },
+      {
+        "url": "http://localhost:8000/js/components/bus-map.js",
+        "type": "script",
+        "bytes": 15720,
+        "encodedBytes": 15720
+      },
+      {
+        "url": "http://localhost:8000/js/pages/thanks.js",
+        "type": "script",
+        "bytes": 712,
+        "encodedBytes": 712
+      },
+      {
+        "url": "http://localhost:8000/js/app.js",
+        "type": "script",
+        "bytes": 5608,
+        "encodedBytes": 5608
+      },
+      {
+        "url": "http://localhost:8000/js/pages/summary.js",
+        "type": "script",
+        "bytes": 1555,
+        "encodedBytes": 1555
+      },
+      {
+        "url": "http://localhost:8000/js/pages/survey.js",
+        "type": "script",
+        "bytes": 3771,
+        "encodedBytes": 3771
+      },
+      {
+        "url": "https://cdn.tailwindcss.com/3.4.17",
+        "type": "script",
+        "bytes": 407279,
+        "encodedBytes": 126391
+      }
+    ]
+  }
+}
