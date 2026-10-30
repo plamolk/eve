@@ -7,27 +7,23 @@
   <link rel="stylesheet" href="css/app.css">
 </head>
 <body class="min-h-screen bg-cream font-sans text-ink antialiased">
-  <main id="app" class="mx-auto max-w-3xl px-4 pb-16 pt-6"></main>
-
-  <div id="toast" class="pointer-events-none fixed inset-x-0 bottom-6 flex justify-center opacity-0 transition-opacity duration-200" role="status" aria-live="polite">
-    <span class="rounded-full bg-ink px-4 py-2 text-sm text-white shadow"></span>
-  </div>
-
-  <!-- data -->
-  <script src="js/data/questions.js"></script>
-  <script src="js/data/bus-layout.js"></script>
-  <script src="js/data/body-regions.js"></script>
-  <script src="js/data/mock-summary.js"></script>
-  <!-- core -->
-  <script src="js/state.js"></script>
-  <script src="js/components/ui.js"></script>
-  <script src="js/components/body-map.js"></script>
-  <script src="js/components/bus-map.js"></script>
-  <!-- pages -->
-  <script src="js/pages/intro.js"></script>
-  <script src="js/pages/survey.js"></script>
-  <script src="js/pages/thanks.js"></script>
-  <script src="js/pages/summary.js"></script>
-  <script src="js/app.js"></script>
+  <main id="app" class="mx-auto max-w-3xl px-4 pb-16 pt-6">
+    <h1 class="mb-4 text-xl font-bold">🩸 แบบสอบถามรถรับบริจาคโลหิตเคลื่อนที่</h1>
+    <section class="rounded-xl border border-line bg-white p-4">
+      <p class="text-[15px] leading-relaxed">แบบสอบถามนี้เป็นส่วนหนึ่งของโครงการออกแบบชุดเฟอร์นิเจอร์สำหรับพื้นที่เจาะเก็บโลหิต (ศูนย์บริการโลหิตแห่งชาติ สภากาชาดไทย เป็นกรณีศึกษา) ใช้เวลาประมาณ 5-12 นาที</p>
+      <p class="mt-3 text-[13px] text-muted">ไม่ระบุชื่อ ตอบโดยสมัครใจ หยุดเมื่อไรก็ได้ ข้อมูลใช้เพื่อการศึกษาเท่านั้น ผู้ตอบต้องมีอายุ 18 ปีขึ้นไป</p>
+      <div class="mt-4">
+        <p class="mb-2 font-semibold text-[15px]">คุณคือใคร</p>
+        <div class="flex flex-wrap gap-2">
+          <a href="survey.html?role=staff" class="rounded-full border px-4 py-2.5 text-sm leading-tight transition-colors border-line bg-white text-ink hover:border-blood/40">เจ้าหน้าที่</a>
+          <a href="survey.html?role=donor" class="rounded-full border px-4 py-2.5 text-sm leading-tight transition-colors border-line bg-white text-ink hover:border-blood/40">ผู้บริจาคโลหิต</a>
+        </div>
+      </div>
+      <p class="mt-4 text-[13px] text-muted">การกดเลือกถือว่ายินยอมให้ใช้ข้อมูลที่ตอบ</p>
+    </section>
+    <div class="mt-4">
+      <a href="admin.html" class="inline-block rounded-full border border-line bg-white px-4 py-3 text-sm font-semibold transition-colors hover:border-blood/40">ดูตัวอย่างหน้าสรุปผล (ข้อมูลจำลอง)</a>
+    </div>
+  </main>
 </body>
 </html>

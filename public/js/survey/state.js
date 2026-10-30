@@ -4,7 +4,7 @@ window.App = window.App || {};
 (function () {
   function fresh() {
     return {
-      screen: 'intro', // intro | survey | thanks | summary
+      screen: 'survey', // survey | thanks
       step: 0,         // index ของส่วน A–F
       role: null,
       answers: {},
