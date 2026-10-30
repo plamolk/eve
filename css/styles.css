@@ -19,6 +19,45 @@
   stroke-dasharray: none;
 }
 
+/* Bus map (SVG floor plan) */
+.bus-svg {
+  border-radius: 14px;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+.bus-svg .lift {
+  transition: transform 160ms ease, filter 160ms ease;
+}
+.bus-svg .hit:hover .lift,
+.bus-svg .hit:focus-visible .lift {
+  transform: translateY(-2px);
+  filter: drop-shadow(0 4px 5px rgba(110, 20, 30, 0.28));
+}
+.bus-svg .hit:active .lift {
+  transform: translateY(0);
+  filter: none;
+}
+.bus-svg .hit:hover .frame {
+  stroke-dasharray: none;
+  stroke-width: 2;
+}
+.bus-svg .ring {
+  opacity: 0;
+  pointer-events: none;
+}
+.bus-svg .is-open .ring {
+  opacity: 1;
+  stroke-dasharray: 9 6;
+  animation: bus-ring 0.9s linear infinite;
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.9));
+}
+.bus-svg .hit:focus-visible .ring {
+  opacity: 1;
+}
+@keyframes bus-ring {
+  to { stroke-dashoffset: -15; }
+}
+
 /* Small native selects used in Part C, close to the default macOS look */
 .msd-select {
   min-width: 5.5rem;
@@ -32,6 +71,7 @@
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;
+    animation: none !important;
     scroll-behavior: auto !important;
   }
 }

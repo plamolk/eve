@@ -1,4 +1,4 @@
-// แบบสอบถามส่วน A–F
+// แบบสอบถามทีละส่วน (ชุดคำถามขึ้นกับ role: staff | donor)
 window.App = window.App || {};
 App.pages = App.pages || {};
 
@@ -12,6 +12,24 @@ App.pages = App.pages || {};
         return ui.field(q.label, ui.pillGroup(q.options.map(function (o) {
           return ui.pill(ui.esc(o), a[q.key] === o, { action: 'pick', key: q.key, value: o });
         }).join('')), q.large);
+
+      case 'scale':
+        return ui.field(q.label, ui.pillGroup(q.options.map(function (o) {
+          const label = '<span class="mr-1.5 text-[17px] leading-none" aria-hidden="true">' + o.emoji + '</span>' + ui.esc(o.label);
+          return ui.pill(label, a[q.key] === o.value, { action: 'scale', key: q.key, value: o.value }, 'inline-flex items-center');
+        }).join('')));
+
+      case 'multi': {
+        const list = a[q.key] || [];
+        const full = q.max && list.length >= q.max;
+        return ui.field(q.label, ui.pillGroup(q.options.map(function (o) {
+          const on = list.indexOf(o) >= 0;
+          const data = { action: 'multi', key: q.key, value: o };
+          if (q.max) data.max = q.max;
+          if (q.only) data.only = q.only;
+          return ui.pill(ui.esc(o), on, data, !on && full ? 'opacity-50' : '');
+        }).join('')));
+      }
 
       case 'rank': {
         const list = a[q.key] || [];
@@ -46,7 +64,7 @@ App.pages = App.pages || {};
 
   App.pages.survey = {
     render: function () {
-      const sections = App.data.sections;
+      const sections = App.data.sections[App.state.role];
       const step = App.state.step;
       const sec = sections[step];
       const last = step === sections.length - 1;

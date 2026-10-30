@@ -12,11 +12,11 @@ App.data.mockSummary = {
 
   // count = จำนวนผู้ระบุ, avg = คะแนนความรุนแรงเฉลี่ย (1–5)
   heat: {
-    Z5: { count: 6, avg: 3.0 },
-    Z1: { count: 5, avg: 3.2 },
-    Z2: { count: 3, avg: 2.5 },
+    Z6: { count: 6, avg: 3.0 },
+    Z2: { count: 5, avg: 3.2 },
+    Z3: { count: 3, avg: 2.5 },
     Z4: { count: 8, avg: 4.1 },
-    Z3: { count: 14, avg: 4.3 },
+    Z5: { count: 14, avg: 4.3 },
     A1: { count: 2, avg: 2.6 },
     A3: { count: 9, avg: 4.2 },
     B2: { count: 11, avg: 4.4 },

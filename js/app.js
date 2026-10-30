@@ -71,12 +71,9 @@ window.App = window.App || {};
   const S = function () { return App.state; };
   const actions = {
     role: function (d) {
-      if (d.value === 'staff') {
-        S().role = 'staff';
-        go('survey', 0);
-      } else {
-        toast(App.data.intro.donorUnavailable);
-      }
+      App.store.reset();
+      S().role = d.value; // staff | donor
+      go('survey', 0);
     },
     summary: function () { go('summary'); },
     home: function () { go('intro'); },
@@ -90,6 +87,8 @@ window.App = window.App || {};
     copy: function (d, el) { copyAnswers(el); },
 
     pick: function (d) { App.store.toggleSingle(d.key, d.value); render(); },
+    scale: function (d) { App.store.toggleSingle(d.key, Number(d.value)); render(); },
+    multi: function (d) { App.store.toggleMulti(d.key, d.value, Number(d.max) || 0, d.only); render(); },
     rank: function (d) { App.store.toggleRank(d.key, d.value, Number(d.max)); render(); },
     body: function (d) { App.store.toggleRegion(d.id); render(); },
 

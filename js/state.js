@@ -36,6 +36,19 @@ window.App = window.App || {};
       App.store.setAnswer(key, cur === value ? '' : value);
     },
 
+    // เลือกได้หลายข้อ: max = จำนวนสูงสุด, only = ตัวเลือกที่ล้างข้ออื่น (เช่น "ไม่มี")
+    toggleMulti: function (key, value, max, only) {
+      let list = (App.state.answers[key] || []).slice();
+      const i = list.indexOf(value);
+      if (i >= 0) list.splice(i, 1);
+      else if (only && value === only) list = [value];
+      else {
+        if (only) list = list.filter(function (v) { return v !== only; });
+        if (!max || list.length < max) list.push(value);
+      }
+      App.store.setAnswer(key, list);
+    },
+
     // Part F: กดตามลำดับ กดซ้ำเพื่อเอาออก
     toggleRank: function (key, value, max) {
       const list = (App.state.answers[key] || []).slice();
