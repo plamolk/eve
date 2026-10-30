@@ -154,7 +154,7 @@ window.App = window.App || {};
   function render(opts) {
     opts = opts || {};
     const st = App.state;
-    if (st.missing) {
+    if (st.missing && !st.missing.fromServer) {
       const p = App.submit.checkStep(st, st.step);
       if (!p || p.key !== st.missing.key) st.missing = null;
     }
@@ -221,18 +221,34 @@ window.App = window.App || {};
     sendAnswers();
   }
 
+  // field ของ server → key ที่ใช้ไฮไลต์ (ข้อคำถาม, msd.<ส่วน>, map.<จุด>)
+  function keyForField(field) {
+    const p = String(field).split('.');
+    if (p[0] === 'answers') return p[1] === 'noMap' ? 'map' : p[1] === 'noMsd' ? 'msd' : p[1];
+    return p.slice(0, 2).join('.');
+  }
+
   function sendAnswers() {
     const st = App.state;
     if (st.sending) return;
     st.sending = true;
     st.notice = null;
     render();
-    App.submit.send(st, function (code) {
+    App.submit.send(st, function (code, field) {
       if (code === 'ok') {
         location.replace('thanks.html');
         return;
       }
       st.sending = false;
+      const step = code === 'invalid' ? App.submit.stepForField(st, field) : null;
+      if (step !== null) {
+        // server ชี้ข้อที่ผิด: พาไปส่วนนั้นแล้วไฮไลต์
+        go(step);
+        st.missing = { step: step, key: keyForField(field), message: App.data.submit.invalid, fromServer: true };
+        render();
+        scrollToMissing();
+        return;
+      }
       st.notice = { kind: 'send', code: code };
       render();
       scrollToMissing();

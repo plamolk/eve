@@ -97,7 +97,8 @@ App.data.admin = {
   // ---------- CSV ----------
   function cell(v) {
     if (v === undefined || v === null) return '';
-    const s = Array.isArray(v) ? v.join(' | ') : String(v);
+    let s = Array.isArray(v) ? v.join(' | ') : String(v);
+    if (/^[=+\-@\t\r]/.test(s)) s = "'" + s; // กัน Excel ตีความเป็นสูตร
     return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
   }
 

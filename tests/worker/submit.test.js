@@ -43,6 +43,21 @@ beforeEach(async () => {
 
 afterEach(() => { vi.restoreAllMocks(); });
 
+describe('strict Turnstile with unset ALLOWED_HOSTS', () => {
+  test('rejects and logs a configuration error', async () => {
+    const { turnstileAccepted } = await import('../../src/turnstile.js');
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    expect(turnstileAccepted({ ok: true, hostname: 'x', action: 'submit' }, { TURNSTILE_STRICT: '1', ALLOWED_HOSTS: 'REPLACE_WITH_HOSTNAME' })).toBe(false);
+    expect(turnstileAccepted({ ok: true, hostname: 'x', action: 'submit' }, { TURNSTILE_STRICT: '1', ALLOWED_HOSTS: '' })).toBe(false);
+    expect(err).toHaveBeenCalledWith(expect.stringContaining('ALLOWED_HOSTS'));
+  });
+
+  test('wrangler.jsonc ships a placeholder the pre-launch grep catches', async () => {
+    const cfg = (await import('../../wrangler.jsonc?raw')).default;
+    expect(cfg).toMatch(/"ALLOWED_HOSTS": "REPLACE_WITH_HOSTNAME"/);
+  });
+});
+
 describe('POST /api/submit', () => {
   test('stores one row with the data unchanged and counts 3 written rows', async () => {
     const res = await post(envelope());

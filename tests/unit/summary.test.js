@@ -37,3 +37,13 @@ test('avg is rounded to one decimal', () => {
 test('empty accumulator presents empty summaries', () => {
   expect(present(emptyAcc())).toEqual({ staff: { n: 0, heat: {}, body: {}, rank: [] }, donor: { n: 0, heat: {} } });
 });
+
+test('rows with inherited keys never touch Object.prototype', () => {
+  const evil = { id: 9, role: 'staff', data: '{"role":"staff","answers":{"rank":["__proto__","constructor"]},"msd":{"__proto__":{"y":"ใช่","w":"ไม่","s":1}},"map":{"__proto__":{"t":["คับแคบ"],"sev":3,"n":""},"toString":{"t":["คับแคบ"],"sev":3,"n":""}}}' };
+  const s = present(mergeRows(emptyAcc(), [evil]));
+  expect(({}).c).toBeUndefined();
+  expect(({}).s).toBeUndefined();
+  expect(s.staff.heat).toEqual({});
+  expect(s.staff.body).toEqual({});
+  expect(s.staff.rank).toEqual([]);
+});

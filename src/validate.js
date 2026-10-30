@@ -7,6 +7,8 @@ const NUMBER = /^\d+(\.\d+)?$/;
 const bad = (field) => ({ ok: false, field });
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const byteLength = (s) => new TextEncoder().encode(s).length;
+// ใช้เฉพาะ key ของ object เอง (กัน __proto__, constructor, toString ฯลฯ)
+const own = (obj, k) => Object.hasOwn(obj, k);
 
 function uniqueIn(list, options) {
   return Array.isArray(list) && new Set(list).size === list.length &&
@@ -36,7 +38,7 @@ function checkAnswers(role, answers) {
       if (answers[k] !== true) return 'answers.' + k;
       continue;
     }
-    if (!schema[k] || !validAnswer(schema[k], answers[k])) return 'answers.' + k;
+    if (!own(schema, k) || !validAnswer(schema[k], answers[k])) return 'answers.' + k;
   }
   for (const [k, q] of Object.entries(schema)) {
     if (!q.optional && !(k in answers)) return 'answers.' + k;
@@ -67,7 +69,7 @@ function checkMap(map, answers) {
   if (!ids.length === !answers.noMap) return 'map';
   for (const id of ids) {
     const e = map[id];
-    const kind = ZONES[id];
+    const kind = own(ZONES, id) ? ZONES[id] : null;
     if (!kind || !isObj(e)) return 'map.' + id;
     for (const k of Object.keys(e)) {
       if (!['t', 'p', 'sev', 'n'].includes(k)) return 'map.' + id + '.' + k;
@@ -84,7 +86,7 @@ export function validateData(data) {
   if (!isObj(data)) return bad('data');
   const keys = Object.keys(data).sort().join(',');
   if (keys !== 'answers,map,msd,role') return bad('data');
-  if (!SCHEMA[data.role]) return bad('role');
+  if (typeof data.role !== 'string' || !own(SCHEMA, data.role)) return bad('role');
   const field = checkAnswers(data.role, data.answers) ||
     checkMsd(data.role, data.msd, data.answers) ||
     checkMap(data.map, data.answers);

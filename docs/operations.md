@@ -40,7 +40,7 @@ npm run dev                              # http://localhost:8787  (build CSS ใ
    - Hostname: `eve-survey.<ชื่อบัญชี>.workers.dev`
    - Widget mode: Managed
    - เอา **Site key** ไปแทน `REPLACE_WITH_SITE_KEY` ใน `public/js/config.js`
-   - ใส่ hostname ใน `ALLOWED_HOSTS` ของ `wrangler.jsonc`
+   - ใส่ hostname แทน `REPLACE_WITH_HOSTNAME` ใน `ALLOWED_HOSTS` ของ `wrangler.jsonc` (ถ้าลืม Worker จะปฏิเสธทุกคำตอบและเขียน error ใน log)
 5. **Google Sheets ทางสำรอง:** ทำตาม `tools/apps-script/README.md` แล้วเอา Web app URL ไปแทน `REPLACE_WITH_APPS_SCRIPT_URL` ทั้งใน `wrangler.jsonc` (`SHEETS_URL`) และ `public/js/config.js`
 6. **Secrets:** รันทีละคำสั่ง แล้วพิมพ์ค่าเมื่อระบบถาม
    ```

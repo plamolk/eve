@@ -43,7 +43,9 @@ window.App = window.App || {};
     const saved = Object.keys(state.map).filter(function (id) { return !state.map[id].tmp; });
     if (!saved.length && !state.answers.noMap) return problem(step, 'map', 'needMap');
     for (const id of saved) {
-      if (String(state.map[id].n || '').length > NOTE_MAX) return problem(step, 'map.' + id, 'tooLong');
+      const e = state.map[id];
+      if (!e.t || !e.t.length) return problem(step, 'map.' + id, 'needType');
+      if (String(e.n || '').length > NOTE_MAX) return problem(step, 'map.' + id, 'tooLong');
     }
     return null;
   }
@@ -77,6 +79,24 @@ window.App = window.App || {};
     }
     const bytes = new TextEncoder().encode(JSON.stringify(buildData(state))).length;
     if (bytes > DATA_MAX_BYTES) return problem(sections.length - 1, '', 'tooLarge');
+    return null;
+  }
+
+  // field จาก server (เช่น answers.pos, msd.คอ.s, map.A3.t) → ส่วนที่ต้องแก้
+  function stepForField(state, field) {
+    const sections = App.data.sections[state.role];
+    const head = String(field || '').split('.')[0];
+    const key = String(field || '').split('.')[1];
+    const byComponent = function (c) {
+      const i = sections.findIndex(function (s) { return s.component === c; });
+      return i < 0 ? null : i;
+    };
+    if (head === 'msd' || key === 'noMsd') return byComponent('bodyMap');
+    if (head === 'map' || key === 'noMap') return byComponent('busMap');
+    if (head === 'answers' && key) {
+      const i = sections.findIndex(function (s) { return s.items.some(function (q) { return q.key === key; }); });
+      return i < 0 ? null : i;
+    }
     return null;
   }
 
@@ -195,7 +215,7 @@ window.App = window.App || {};
     let kind = res ? classify(res) : 'down';
     if (kind === 'down') kind = (await sendToSheets(state.cid, data)) ? 'ok' : 'unavailable';
     if (kind === 'ok') draft.clear();
-    onDone(kind);
+    onDone(kind, kind === 'invalid' && res.json ? res.json.field : undefined);
   }
 
   App.draft = draft;
@@ -206,6 +226,7 @@ window.App = window.App || {};
     buildData: buildData,
     pendingZones: pendingZones,
     resolveTmp: resolveTmp,
+    stepForField: stepForField,
     classify: classify,
     token: token,
     send: send

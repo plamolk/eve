@@ -83,6 +83,15 @@ describe('toCSV', () => {
     expect(csv).toContain('ซ่อนสาย | ทางเดินกว้างขึ้น');
   });
 
+  test('cells Excel would read as formulas are prefixed with an apostrophe', () => {
+    const r = [{ id: 3, cid: 'c3', role: 'staff', created: 0, src: 0, data: { role: 'staff', answers: { other: '=HYPERLINK("http://x")', worry: '- ปวดหลัง', setup: '+1', faint: '@x' }, msd: {}, map: {} } }];
+    const csv = App.admin.toCSV(r);
+    expect(csv).toContain(`"'=HYPERLINK(""http://x"")"`);
+    expect(csv).toContain(",'- ปวดหลัง,");
+    expect(csv).toContain(",'+1,");
+    expect(csv).toContain(",'@x,");
+  });
+
   test('created is Bangkok time', () => {
     const csv = App.admin.toCSV(rows);
     expect(csv).toContain(',1970-01-01 07:00:00,');

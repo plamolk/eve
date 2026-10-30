@@ -124,8 +124,27 @@ describe('syncBatch_', () => {
     const accepted = Array.from({ length: 39 }, (_, i) => CID(100 + i));
     worker.body = { accepted, rejected: [{ cid: CID(139), field: 'answers.age' }] };
     expect(ctx.syncBatch_(deps)).toEqual({ sent: 40, accepted: 39 });
-    expect(deps.sheet.rows.filter((r) => r[5] !== '')).toHaveLength(39);
+    expect(deps.sheet.rows.filter((r) => r[5] === '2026-10-31T03:00:00.000Z')).toHaveLength(39);
+    expect(deps.sheet.rows[39][5]).toBe('rejected:answers.age');
     expect(deps.sheet.rows[0][5]).toBe('2026-10-31T03:00:00.000Z');
+  });
+
+  test('rejected rows are marked and skipped next time', () => {
+    fill(3);
+    worker.body = { accepted: [CID(100), CID(102)], rejected: [{ cid: CID(101), field: 'answers.age' }] };
+    ctx.syncBatch_(deps);
+    expect(deps.sheet.rows[1][5]).toBe('rejected:answers.age');
+    fetches = [];
+    worker.body = { accepted: [], rejected: [] };
+    expect(ctx.syncBatch_(deps)).toEqual({ sent: 0, accepted: 0 });
+  });
+
+  test('an unparseable data cell is marked and does not stop the batch', () => {
+    deps.sheet.rows.push(['2026-10-31T01:00:00.000Z', CID(300), 'donor', '{broken', 'worker', '']);
+    fill(1);
+    worker.body = { accepted: [CID(100)], rejected: [] };
+    expect(ctx.syncBatch_(deps)).toEqual({ sent: 1, accepted: 1 });
+    expect(deps.sheet.rows[0][5]).toBe('rejected:parse');
   });
 
   test('worker 503 marks nothing', () => {

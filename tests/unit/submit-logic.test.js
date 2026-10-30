@@ -138,6 +138,12 @@ describe('bus map (part D)', () => {
     expect(s.answers.noMap).toBeUndefined();
   });
 
+  test('a saved point whose types were all cleared is caught on part D', () => {
+    const s = fullState('donor');
+    App.store.toggleZoneList('A3', 't', 'คับแคบ'); // removes the only type of the saved point
+    expect(App.submit.checkStep(s, stepOf('donor', 'busMap'))).toEqual({ step: stepOf('donor', 'busMap'), key: 'map.A3', message: 'กรุณาเลือกประเภทปัญหาอย่างน้อย 1 อย่าง' });
+  });
+
   test('note longer than 500 is too long', () => {
     const s = fullState('donor');
     s.map.A3.n = 'ก'.repeat(501);
@@ -228,4 +234,22 @@ test('restore puts a draft back into the state', () => {
   App.store.restore({ v: 1, cid: 'abc', role: 'donor', step: 3, answers: { age: '18-25' }, msd: {}, map: { Z5: { t: ['คับแคบ'], sev: 2, n: '' } } });
   expect(App.state).toMatchObject({ cid: 'abc', role: 'donor', step: 3, answers: { age: '18-25' } });
   expect(App.state.map.Z5.sev).toBe(2);
+});
+
+describe('stepForField (server 400 field → section)', () => {
+  test.each([
+    ['answers.pos', 0], ['answers.rank', 5], ['answers.zone', 3], ['msd', 2], ['msd.คอ.s', 2], ['map', 3], ['map.A3.t', 3], ['answers.noMap', 3], ['answers.noMsd', 2]
+  ])('staff %s → step %i', (field, step) => {
+    fullState('staff');
+    expect(App.submit.stepForField(App.state, field)).toBe(step);
+  });
+
+  test('unknown field → null', () => {
+    fullState('donor');
+    expect(App.submit.stepForField(App.state, 'body')).toBeNull();
+  });
+});
+
+test('classify keeps the server field for invalid answers', () => {
+  expect(App.submit.classify({ status: 400, json: { error: 'invalid', field: 'answers.pos' } })).toBe('invalid');
 });

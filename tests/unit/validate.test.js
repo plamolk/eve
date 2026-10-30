@@ -100,3 +100,16 @@ describe('validateEnvelope', () => {
     expect(validateEnvelope('x')).toEqual({ ok: false, field: 'body' });
   });
 });
+
+describe('inherited object keys are not "known"', () => {
+  const parse = (o) => JSON.parse(o);
+  test.each([
+    ['__proto__ zone', '{"role":"donor","answers":' + JSON.stringify(donor().answers) + ',"msd":{},"map":{"__proto__":{"t":["คับแคบ"],"sev":3,"n":""}}}', 'map.__proto__'],
+    ['toString zone', '{"role":"donor","answers":' + JSON.stringify(donor().answers) + ',"msd":{},"map":{"toString":{"t":["คับแคบ"],"sev":3,"n":""}}}', 'map.toString'],
+    ['constructor role', '{"role":"constructor","answers":{},"msd":{},"map":{}}', 'role'],
+    ['__proto__ role', '{"role":"__proto__","answers":{},"msd":{},"map":{}}', 'role'],
+    ['toString answer', '{"role":"donor","answers":' + JSON.stringify({ ...donor().answers, toString: 'x' }) + ',"msd":{},"map":' + JSON.stringify(donor().map) + '}', 'answers.toString']
+  ])('%s', (_n, json, field) => {
+    expect(validateData(parse(json))).toEqual({ ok: false, field });
+  });
+});

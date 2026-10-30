@@ -24,7 +24,7 @@
     "D1_WRITE_LIMIT": "100000",
     "D1_READ_LIMIT": "5000000",
     // hostname ของ Turnstile ที่ยอมรับ (คั่นด้วย ,) เช่น eve-survey.<account>.workers.dev
-    "ALLOWED_HOSTS": "",
+    "ALLOWED_HOSTS": "REPLACE_WITH_HOSTNAME",
     "TURNSTILE_STRICT": "1"
   }
   // secrets (wrangler secret put): TURNSTILE_SECRET, ADMIN_PASSWORD, SESSION_KEY, SHEETS_TOKEN, IMPORT_TOKEN

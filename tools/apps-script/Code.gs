@@ -95,9 +95,20 @@ function syncBatch_(d) {
   }
   if (!pending.length) return { sent: 0, accepted: 0 };
 
-  var items = pending.map(function (p) {
-    return { cid: p.cid, data: JSON.parse(p.data), received: Math.floor(new Date(p.received).getTime() / 1000) };
+  var items = [];
+  var sending = [];
+  pending.forEach(function (p) {
+    var data;
+    try {
+      data = JSON.parse(p.data);
+    } catch (err) {
+      d.sheet.getRange(p.row, 6).setValue('rejected:parse'); // ข้ามแถวที่อ่านไม่ได้ ไม่ให้ค้างทุกรอบ
+      return;
+    }
+    items.push({ cid: p.cid, data: data, received: Math.floor(new Date(p.received).getTime() / 1000) });
+    sending.push(p);
   });
+  if (!items.length) return { sent: 0, accepted: 0 };
   var res = d.fetch(d.props.WORKER_URL + '/api/import', {
     method: 'post',
     contentType: 'application/json',
@@ -105,16 +116,22 @@ function syncBatch_(d) {
     payload: JSON.stringify({ items: items }),
     muteHttpExceptions: true
   });
-  if (res.getResponseCode() !== 200) return { sent: pending.length, accepted: 0 }; // ลองใหม่ชั่วโมงหน้า
+  if (res.getResponseCode() !== 200) return { sent: items.length, accepted: 0 }; // ลองใหม่ชั่วโมงหน้า
 
-  var accepted = JSON.parse(res.getContentText()).accepted || [];
+  var body = JSON.parse(res.getContentText());
+  var accepted = body.accepted || [];
+  var rejected = {};
+  (body.rejected || []).forEach(function (r) { rejected[r.cid] = r.field; });
   var stamp = d.now.toISOString();
   var marked = 0;
-  pending.forEach(function (p) {
+  sending.forEach(function (p) {
     if (accepted.indexOf(p.cid) >= 0) {
       d.sheet.getRange(p.row, 6).setValue(stamp);
       marked++;
+    } else if (Object.prototype.hasOwnProperty.call(rejected, p.cid)) {
+      // server ไม่รับ: ทำเครื่องหมายไว้ ไม่ส่งซ้ำ (ยังอยู่ใน Sheet ให้ตรวจเอง)
+      d.sheet.getRange(p.row, 6).setValue('rejected:' + rejected[p.cid]);
     }
   });
-  return { sent: pending.length, accepted: marked };
+  return { sent: items.length, accepted: marked };
 }

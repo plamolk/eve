@@ -144,3 +144,23 @@ test('draft banner resumes answers', async ({ page }) => {
   const st = await page.evaluate(() => ({ cid: App.state.cid, answers: App.state.answers }));
   expect(st).toEqual({ cid: '6f1c2b3a-1111-4222-8333-444455556666', answers: DONOR_DATA.answers });
 });
+
+test('a saved point with no type left is caught before sending', async ({ page }) => {
+  const seen = await mockApi(page, 201, { ok: true });
+  await donorToEnd(page);
+  await page.evaluate(() => { delete App.state.answers.noMap; App.state.map = { A3: { t: [], p: [], sev: 3, n: '' } }; });
+  await submitBtn(page).click();
+  await expect(page.locator('#app h2').first()).toContainText('ส่วน D');
+  await expect(page.getByText('กรุณาเลือกประเภทปัญหาอย่างน้อย 1 อย่าง')).toBeVisible();
+  expect(seen).toHaveLength(0);
+});
+
+test('a 400 with a field takes the respondent to that section', async ({ page }) => {
+  await mockApi(page, 400, { error: 'invalid', field: 'answers.seat' });
+  await donorToEnd(page);
+  await submitBtn(page).click();
+  await expect(page.locator('#app h2').first()).toHaveText('ส่วน B ความสบาย');
+  const missing = page.locator('[data-missing]').first();
+  await expect(missing).toContainText('ข้อมูลไม่ถูกต้อง');
+  await expect(missing).toContainText('เก้าอี้นั่งสบาย');
+});
