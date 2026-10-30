@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>แบบสอบถามรถรับบริจาคโลหิตเคลื่อนที่</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            blood: { DEFAULT: '#b83227', dark: '#9c2a20' },
+            cream: '#f8f3f0',
+            line: '#ebe2de',
+            track: '#e6d6d4',
+            ink: '#1d1919',
+            muted: '#5f5757'
+          },
+          fontFamily: {
+            sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Thonburi', 'Noto Sans Thai Looped', 'Leelawadee UI', 'Tahoma', 'sans-serif']
+          }
+        }
+      }
+    };
+  </script>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="min-h-screen bg-cream font-sans text-ink antialiased">
+  <main id="app" class="mx-auto max-w-3xl px-4 pb-16 pt-6"></main>
+
+  <div id="toast" class="pointer-events-none fixed inset-x-0 bottom-6 flex justify-center opacity-0 transition-opacity duration-200" role="status" aria-live="polite">
+    <span class="rounded-full bg-ink px-4 py-2 text-sm text-white shadow"></span>
+  </div>
+
+  <!-- data -->
+  <script src="js/data/questions.js"></script>
+  <script src="js/data/bus-layout.js"></script>
+  <script src="js/data/body-regions.js"></script>
+  <script src="js/data/mock-summary.js"></script>
+  <!-- core -->
+  <script src="js/state.js"></script>
+  <script src="js/components/ui.js"></script>
+  <script src="js/components/body-map.js"></script>
+  <script src="js/components/bus-map.js"></script>
+  <!-- pages -->
+  <script src="js/pages/intro.js"></script>
+  <script src="js/pages/survey.js"></script>
+  <script src="js/pages/thanks.js"></script>
+  <script src="js/pages/summary.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

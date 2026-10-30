@@ -1,0 +1,37 @@
+/* Styles that are awkward to express with Tailwind utilities */
+
+/* Visible keyboard focus everywhere */
+:focus-visible {
+  outline: 2px solid #b83227;
+  outline-offset: 2px;
+}
+
+/* Clickable shapes inside the body map and bus map */
+.hit {
+  cursor: pointer;
+}
+.hit:focus {
+  outline: none;
+}
+.hit:focus-visible .shape {
+  stroke: #b83227;
+  stroke-width: 2.5;
+  stroke-dasharray: none;
+}
+
+/* Small native selects used in Part C, close to the default macOS look */
+.msd-select {
+  min-width: 5.5rem;
+  font-size: 0.8125rem;
+  padding: 0.125rem 0.25rem;
+  border: 1px solid #c9c2c0;
+  border-radius: 0.3rem;
+  background: #fff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
