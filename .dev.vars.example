@@ -1,0 +1,8 @@
+# คัดลอกเป็น .dev.vars สำหรับ npm run dev (ห้าม commit .dev.vars)
+TURNSTILE_SECRET=1x0000000000000000000000000000000AA
+ADMIN_PASSWORD=dev-password-change-me-123
+SESSION_KEY=dev-session-key
+SHEETS_TOKEN=dev-sheets-token
+IMPORT_TOKEN=dev-import-token
+SHEETS_URL=http://localhost:8790/exec
+TURNSTILE_STRICT=0
