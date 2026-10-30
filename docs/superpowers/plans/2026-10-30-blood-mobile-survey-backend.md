@@ -13,8 +13,10 @@
 ## Global Constraints
 
 - ห้ามใช้บริการที่ต้องใส่บัตรเครดิตหรือมีค่าใช้จ่ายแอบแฝง (ไม่ใช้ R2 และไม่ใช้ Cloudflare Access)
-- ห้ามเปลี่ยนหน้าตาหรือข้อความคำถามเดิม ยกเว้นส่วนที่เกี่ยวกับข้อมูลจำลอง โดยใช้ visual test (Task 2) เป็นตัวตัดสิน
-- `data` ต้องเป็น `{role, answers, msd, map}` ตรงกับ `App.store.toJSON()` เดิม และ envelope ต้องเป็น `{"v":1,"cid":"<uuid>","token":"<turnstile>","hp":"","data":{…}}`
+- ห้ามเปลี่ยนหน้าตาหรือข้อความคำถามเดิม ยกเว้นส่วนที่เกี่ยวกับข้อมูลจำลอง และสิ่งที่เพิ่มเพื่อบังคับกรอก (ปุ่ม "ไม่มี" และข้อความเตือน) โดยใช้ visual test (Task 2) เป็นตัวตัดสิน
+- ไม่มีปุ่ม "คัดลอกคำตอบ" และไม่แสดง JSON ให้ผู้ตอบเห็นที่ใดเลย
+- ทุกข้อบังคับกรอก ยกเว้น item ที่มี `optional: true` (ตอนนี้มีแค่ `ht`) และหมายเหตุ `n` ของจุดบนผัง โดยตรวจเมื่อกด "ถัดไป" ทุกส่วน (spec หัวข้อ 6.5)
+- `data` ต้องเป็น `{role, answers, msd, map}` ตรงกับ `App.store.toJSON()` เดิม (เพิ่มได้แค่ `answers.noMsd` / `answers.noMap` = `true` ตามที่ผู้ใช้อนุมัติ) และ envelope ต้องเป็น `{"v":1,"cid":"<uuid>","token":"<turnstile>","hp":"","data":{…}}`
 - localStorage ใช้เก็บร่างสำรองเท่านั้น (key `eve-draft`) ทุกการเรียกต้องห่อ try/catch และต้องลบเมื่อได้ 201/202
 - ห้ามลบไฟล์นอกกลุ่ม (ก) และ (ข) ในหัวข้อ 14 ของ spec จนกว่าผู้ใช้จะอนุมัติตารางใน Task 9
 - ใช้ `window.App` + vanilla JS + `<script defer>` ไม่ใช้ framework ฝั่งหน้าเว็บ
@@ -33,7 +35,7 @@
 2. **กด "ส่งคำตอบ" ซ้ำเร็ว ๆ หรือกดส่งอีกครั้งหลัง timeout:** ต้องเกิดคำขอเดียวและแถวเดียว (ปุ่มถูก disable ระหว่างส่ง + กันซ้ำด้วย `cid`) → ทดสอบใน Task 7 และ Task 12
 3. **session แอดมินหมดอายุระหว่างเปิดหน้าอยู่:** เมื่อกด [อัปเดต] ต้องกลับไปที่ฟอร์มเข้าสู่ระบบ ไม่ใช่หน้าพัง → ทดสอบใน Task 8
 4. **CSV ที่มีภาษาไทยปนจุลภาค เครื่องหมายคำพูด ขึ้นบรรทัดใหม่ และอีโมจิ:** ต้องเปิดใน Excel ได้ถูกต้อง (มี BOM และ quote ตาม RFC 4180) → ทดสอบใน Task 8
-5. **สคริปต์ Turnstile ถูกบล็อกหรือโหลดไม่ได้** (ad blocker หรือเน็ตหลุด): กดส่งแล้วต้องได้ข้อความให้ลองใหม่และปุ่มคัดลอก โดยไม่มี uncaught error → ทดสอบใน Task 7
+5. **สคริปต์ Turnstile ถูกบล็อกหรือโหลดไม่ได้** (ad blocker หรือเน็ตหลุด): กดส่งแล้วต้องได้ข้อความให้ลองใหม่ ร่างยังอยู่ และไม่มี uncaught error → ทดสอบใน Task 7
 
 ---
 
@@ -266,68 +268,98 @@
 
 ## Phase 2 — ขั้นที่ 2 (เอาข้อมูลจำลองออก + ส่งคำตอบจริง)
 
-### Task 6: ตรรกะเตรียมก่อนส่ง (จุด tmp, สร้าง data, ตรวจค่า)
+### Task 6: บังคับกรอกทุกส่วน, ปุ่ม "ไม่มี", จุด tmp และสร้าง data
 
 **Files:**
 - Create: `public/js/survey/submit.js` (ส่วน pure), `tests/helpers/load-browser.js`, `tests/unit/submit-logic.test.js`, `vitest.config.js`
-- Modify: `public/js/data/common.js` (เพิ่ม `App.data.submit`), `public/survey.html` (เพิ่ม submit.js ก่อน survey.js), `public/js/survey/survey.js` (กล่องเตือนจุด tmp และกล่องแจ้ง error)
+- Modify:
+  - `public/js/data/common.js` (เพิ่ม `App.data.submit`)
+  - `public/js/data/staff.js` (เพิ่ม `optional: true` ให้ item `ht` เท่านั้น ข้อความไม่เปลี่ยน)
+  - `public/js/survey/state.js` (`setNone`, การล้าง none เมื่อเลือกจุด)
+  - `public/js/shared/ui.js` (`field` รับพารามิเตอร์ `error`)
+  - `public/js/components/body-map.js` / `bus-map.js` (ปุ่ม "ไม่มี" และข้อความใต้ฟอร์มจุด)
+  - `public/js/survey/survey.js` (action `next`/`submit` ตรวจก่อน, กล่องเตือน tmp, เลื่อนไปข้อที่ขาด)
+  - `public/survey.html` (เพิ่ม submit.js ก่อน survey.js)
 
 **Interfaces:**
 - Produces:
   - `loadBrowser(files: string[], globals?: object) -> App`: รันไฟล์ใน `node:vm` context ที่มี `window` (และ `window.window = window`) พร้อม global เริ่มต้น `console`, `crypto`, `TextEncoder` (รวมกับ `globals` ที่ส่งมา) แล้วคืน `window.App`
   - `App.submit.pendingZones(map) -> string[]`: id ที่มี `tmp`
-  - `App.submit.resolveTmp(map, mode: 'save'|'drop') -> object`: คืน map ใหม่ (save = ลบ key `tmp`, drop = ลบทั้ง entry) โดยไม่แก้ input
+  - `App.submit.resolveTmp(map, mode: 'save'|'drop') -> object`: คืน map ใหม่ (save = ลบ key `tmp` เฉพาะจุดที่มี `t` อย่างน้อย 1 ตัว, จุดที่ไม่มี `t` ยังเป็น tmp อยู่ / drop = ลบทั้ง entry) โดยไม่แก้ input
   - `App.submit.buildData(state) -> {role, answers, msd, map}`: deep copy
-  - `App.submit.check(data, sections) -> null | { step: number, key: string, message: string }`
-  - `App.state.notice ∈ null | {kind:'tmp', ids} | {kind:'error', message}` แสดงเหนือปุ่ม nav ด้วย `ui.callout` และ action `tmpsave` / `tmpdrop` / `tmpback` (tmpback ไปที่ step ของส่วนที่มี `component: 'busMap'`)
+  - `App.submit.checkStep(state, step) -> null | {step, key, message}`: ตรวจส่วนเดียวตามกฎด้านล่าง
+  - `App.submit.checkAll(state) -> null | {step, key, message}`: เรียก `checkStep` ทุกส่วนตามลำดับ แล้วตรวจขนาด data
+  - `App.store.setNone(kind: 'msd'|'map', on: boolean)`: on → `answers.noMsd|noMap = true` และล้าง `msd`/`map` / off → ลบ key นั้น ส่วน `toggleRegion` และ `saveZone` จะลบ `noMsd`/`noMap` ให้เอง
+  - `ui.field(label, inner, large, error)`: เมื่อ `error` เป็น string จะครอบด้วยกรอบแดง (`rounded-lg ring-2 ring-blood p-2`) และแสดงข้อความใต้ช่อง ถ้าไม่มี error HTML ต้องเหมือนเดิมทุกตัวอักษร
+  - `App.state.missing = null | {key, message}` (render ใส่ error ให้ field ที่ `key` ตรง แล้ว `scrollIntoView` ไปที่ element ที่มี `data-missing`)
+  - `App.state.notice ∈ null | {kind:'tmp', ids}` แสดงเหนือปุ่ม nav ด้วย `ui.callout` พร้อม action `tmpsave` / `tmpdrop` / `tmpback`
+  - action `none` (`data-kind="msd|map"`), `zsave` ที่ไม่มี `t` → ไม่บันทึก แต่ตั้ง `App.state.zoneError = true` แล้วแสดง `needType` ใต้ฟอร์ม
+  - action `next`: `checkStep` ก่อน ถ้าไม่ผ่าน → ตั้ง `missing` แล้ว render แต่ไม่เปลี่ยน step / ถ้าเป็นส่วน busMap และมีจุด tmp → notice `tmp` / ถ้าผ่าน → ไปส่วนถัดไป
+  - action `submit` (Task 7 ต่อยอด): `checkAll` ก่อน ถ้าไม่ผ่านพาไป `step` ที่ได้แล้วตั้ง `missing`
   - `App.data.submit` (ข้อความชุดแรก):
-    - `empty: 'ยังไม่ได้ตอบข้อใดเลย'`
+    - `required: 'กรุณาตอบข้อนี้'`
+    - `rankAll: 'กรุณาเลือกให้ครบ 3 อันดับ'`
     - `number: 'กรุณากรอกตัวเลข 0–9999'`
-    - `severity: 'ระดับความรุนแรงต้องอยู่ระหว่าง 0–10'`
+    - `severity: 'กรุณากรอกระดับความรุนแรง 0–10'`
     - `tooLong: 'ข้อความยาวเกินไป'`
     - `tooLarge: 'คำตอบมีขนาดใหญ่เกินไป'`
-    - `tmpTitle: 'มี {n} จุดบนผังที่ยังไม่ได้กด "บันทึกจุดนี้"'`
-    - `tmpSave: 'บันทึกทั้งหมดแล้วส่ง'`
-    - `tmpDrop: 'ทิ้งจุดเหล่านี้แล้วส่ง'`
-    - `tmpBack: 'กลับไปแก้ ส่วน D'`
-- กฎของ `check` (เช็กตามลำดับ และคืนปัญหาแรกที่เจอ):
-  1. ไม่มีอะไรใน answers/msd/map → `empty` (step 0)
-  2. คำตอบชนิด number ต้องตรงกับ `/^\d+(\.\d+)?$/`, มีค่า ≤ 9999 และยาวไม่เกิน 8 → ไม่ผ่านเป็น `number`
-  3. msd `s` ต้องเป็น `""` หรือตัวเลข 0–10 → ไม่ผ่านเป็น `severity` (step ของส่วนที่มี `component: 'bodyMap'`)
-  4. textarea ยาวไม่เกิน 2000 และหมายเหตุ `n` ของจุดผังยาวไม่เกิน 500 → ไม่ผ่านเป็น `tooLong`
-  5. ขนาด `TextEncoder` ของ `JSON.stringify(data)` ไม่เกิน 13824 → ไม่ผ่านเป็น `tooLarge`
+    - `noMsd: 'ไม่มีอาการปวดเมื่อย'`, `needMsd: "กรุณาเลือกจุดบนแผนภาพ หรือกด 'ไม่มีอาการปวดเมื่อย'"`
+    - `noMap: 'ไม่พบปัญหา'`, `needMap: "กรุณาบันทึกจุดบนผัง หรือกด 'ไม่พบปัญหา'"`
+    - `needType: 'กรุณาเลือกประเภทปัญหาอย่างน้อย 1 อย่าง'`
+    - `tmpTitle: 'มี {n} จุดบนผังที่ยังไม่ได้กด "บันทึกจุดนี้"'`, `tmpSave: 'บันทึกทั้งหมด'`, `tmpDrop: 'ทิ้งจุดเหล่านี้'`, `tmpBack: 'กลับไปแก้'`
+- กฎของ `checkStep` (ไล่ item ตามลำดับในส่วนนั้น แล้วคืนปัญหาแรกที่เจอ):
+  - item ที่ `optional: true` → ข้ามถ้าว่าง แต่ถ้ามีค่าต้องผ่านกฎชนิด
+  - pills/scale ไม่มีค่า → `required`
+  - multi เป็น array ว่าง → `required`
+  - rank ยาวน้อยกว่า `max` → `rankAll`
+  - number: ว่าง → `required` / ไม่ตรงกับ `/^\d+(\.\d+)?$/`, ค่าเกิน 9999 หรือยาวเกิน 8 → `number`
+  - textarea: `trim()` แล้วว่าง → `required` / ยาวเกิน 2000 → `tooLong`
+  - ส่วน bodyMap: ไม่มี msd และไม่มี `noMsd` → `{key:'msd', message:needMsd}` / ส่วนที่เลือกไว้แต่ `s` ว่างหรืออยู่นอก 0–10 → `{key:'msd.<ส่วน>', message:severity}`
+  - ส่วน busMap: ไม่มีจุดที่บันทึกแล้ว (ไม่นับจุด tmp) และไม่มี `noMap` → `{key:'map', message:needMap}` / หมายเหตุ `n` ยาวเกิน 500 → `tooLong`
+  - `checkAll` ตรวจขนาดเพิ่ม: `TextEncoder` ของ `JSON.stringify(buildData(state))` เกิน 13824 → `tooLarge`
 
 - [ ] **Step 1: เขียน test ที่ต้อง fail** (`tests/unit/submit-logic.test.js`)
-  โหลดด้วย `loadBrowser(['public/js/data/common.js','public/js/data/staff.js','public/js/data/donor.js','public/js/data/bus-layout.js','public/js/survey/state.js','public/js/survey/submit.js'])` แล้วเขียน test ต่อไปนี้:
-  - `pendingZones({A3:{t:[],sev:3,n:'',tmp:1}, Z5:{t:['คับแคบ'],sev:2,n:''}})` → `['A3']`
-  - `resolveTmp(m,'save').A3` ไม่มี `tmp` และ `resolveTmp(m,'drop')` ไม่มี `A3` ส่วน `m` ยังมี `tmp` อยู่
-  - `buildData(state)` deepEqual `JSON.parse(App.store.toJSON())` (ใช้ state ที่มีครบทุกชนิดคำตอบ)
-  - `check({role:'staff',answers:{},msd:{},map:{}}, S)` → `{step:0, key:'', message:'ยังไม่ได้ตอบข้อใดเลย'}`
-  - ค่า `'-1'`, `'1e9'`, `'10000'` ใน `answers.yrs` → `message === 'กรุณากรอกตัวเลข 0–9999'` และ `step === 0`
-  - `'2.5'` ใน `answers.yrs` → `null`
-  - `msd['คอ'].s = 12` → `{step:2, message:'ระดับความรุนแรงต้องอยู่ระหว่าง 0–10'}`
-  - `msd['คอ'].s = ''` → `null`
-  - textarea ยาว 2001 → `tooLong` และหมายเหตุจุดผังยาว 501 → `tooLong`
-  - data ที่ใหญ่กว่า 13824 bytes (textarea ภาษาไทยหลายช่อง) → `tooLarge`
-  - map ที่มีแต่จุด tmp แล้ว `resolveTmp(...,'drop')` → `check` คืน `empty`
+  โหลดด้วย `loadBrowser(['public/js/data/common.js','public/js/data/staff.js','public/js/data/donor.js','public/js/data/bus-layout.js','public/js/survey/state.js','public/js/survey/submit.js'])` และสร้าง state ที่ตอบครบด้วย helper `fullState(role)` ในไฟล์ test แล้วเขียน test ต่อไปนี้:
+  - `checkAll(fullState('staff')) === null` และ `checkAll(fullState('donor')) === null`
+  - ส่วน A ของ staff ที่ไม่มี `pos` → `{step:0, key:'pos', message:'กรุณาตอบข้อนี้'}`
+  - ส่วน A ของ staff ที่ไม่มี `ht` (optional) → `null`
+  - ค่า `'-1'`, `'1e9'`, `'10000'` ใน `yrs` → `message === 'กรุณากรอกตัวเลข 0–9999'` และ `'2.5'` → ผ่าน
+  - textarea `'   '` → `required` และยาว 2001 → `tooLong`
+  - rank ที่มี 2 อันดับ → `'กรุณาเลือกให้ครบ 3 อันดับ'`
+  - multi `again: []` (donor) → `required`
+  - ส่วน C ที่ไม่มี msd และไม่มี noMsd → `key:'msd'` / `setNone('msd', true)` → ผ่าน และ `answers.noMsd === true` / `toggleRegion('คอ')` หลังจากนั้น → `noMsd` หายไป
+  - `msd['คอ'].s = 12` และ `''` → `{key:'msd.คอ', message:'กรุณากรอกระดับความรุนแรง 0–10'}`
+  - ส่วน D ที่มีแค่จุด tmp → `key:'map'` / `setNone('map', true)` → ผ่าน
+  - `pendingZones` / `resolveTmp('save')` กับจุดที่ไม่มี `t` → จุดนั้นยังเป็น tmp / `resolveTmp('drop')` ไม่แก้ input
+  - `buildData(state)` deepEqual `JSON.parse(App.store.toJSON())`
+  - data ที่เกิน 13824 bytes → `tooLarge`
 - [ ] **Step 2: รันแล้วต้อง fail**
   Run: `npm run test:unit -- tests/unit/submit-logic.test.js`
   Expected: FAIL (`App.submit` undefined)
-- [ ] **Step 3: เขียน `submit.js` (ส่วน pure), เพิ่มข้อความ และเพิ่ม UI กล่องแจ้งใน survey.js ตาม Interfaces**
-- [ ] **Step 4: รันแล้วต้องผ่าน**
+- [ ] **Step 3: Implement ตาม Interfaces**
+- [ ] **Step 4: ปรับ visual test ให้กรอกก่อนกด "ถัดไป"**
+  เพิ่ม helper `fillSection(page)` ใน `screens.visual.spec.js` ที่เรียก**หลัง**ถ่ายภาพ: กดตัวเลือกแรกของทุก pills/scale, ตัวเลือกแรกของ multi, 3 ตัวแรกของ rank, ใส่ `'1'` ในช่องตัวเลข, ใส่ `'ทดสอบ'` ในทุก textarea และกดปุ่ม `ไม่มีอาการปวดเมื่อย` / `ไม่พบปัญหา` ถ้ามี (helper นี้ใช้กับ SPA เดิมได้ด้วย)
+- [ ] **Step 5: รันแล้วต้องผ่าน**
   Run: `npm run test:unit -- tests/unit/submit-logic.test.js`
   Expected: PASS
   Run: `BASE_URL=http://localhost:8787 npm run visual`
-  Expected: 30 passed (ยังไม่มีกล่องแจ้งปรากฏในภาพ)
-- [ ] **Step 5: Commit**
-  `git commit -m "feat(survey): pre-submit checks and unsaved map point warning"` (add ไฟล์ตามรายการ Files)
+  Expected: ภาพ `staff-C`, `staff-D` และ `donor-D` ต่างจาก baseline เฉพาะบริเวณปุ่ม "ไม่มี" ที่เพิ่มเข้ามา (ตรวจภาพ diff ด้วยตา) แล้วรัน `--update-snapshots` เฉพาะ 3 ภาพนี้ ภาพที่เหลือต้องผ่าน
+- [ ] **Step 6: เพิ่ม e2e** (`tests/e2e/required.spec.js`)
+  - `next is blocked until section is answered`: กด "ถัดไป" ที่ส่วน A ตอนยังไม่ได้ตอบ → ยังอยู่ส่วน A, เห็น `กรุณาตอบข้อนี้` และ field แรกที่ขาดอยู่ใน viewport
+  - `none button satisfies body and bus map`
+  - `zone save requires a type`: เปิดจุด A3 แล้วกด "บันทึกจุดนี้" ทันที → เห็น `needType` และจุดยังไม่ถูกบันทึก
+  - `unsaved point warning on next of part D`: ทดสอบทั้ง 3 ปุ่ม
+  Run: `npm run e2e -- tests/e2e/required.spec.js`
+  Expected: PASS
+- [ ] **Step 7: Commit**
+  `git commit -m "feat(survey): required answers per section with 'none' options and unsaved point warning"` (add ไฟล์ตามรายการ Files)
 
 ### Task 7: ส่งคำตอบ, ทางสำรอง, ร่างสำรอง, thanks.html
 
 **Files:**
 - Create: `public/js/config.js`, `public/thanks.html`, `tests/e2e/submit.spec.js`, `tests/e2e/fixtures/turnstile-stub.js`
 - Modify: `public/js/survey/submit.js`, `public/js/survey/state.js`, `public/js/survey/survey.js`, `public/js/data/common.js`, `public/survey.html`
-- Delete (กลุ่ม ข): `public/js/pages/thanks.js` และลบ `copyAnswers` ออกจาก survey.js (ย้ายไปอยู่ใน submit.js), ลบ screen `thanks`, ลบ `App.data.thanks` ทั้ง object (ย้าย `copy`/`copied` ไปไว้ที่ `App.data.submit`)
+- Delete (กลุ่ม ข): `public/js/pages/thanks.js`, `copyAnswers` และ action `copy` ใน survey.js (ลบทิ้ง ไม่ย้าย), screen `thanks` และ `App.data.thanks` ทั้ง object
 
 **Interfaces:**
 - Consumes: `App.submit.*` จาก Task 6
@@ -349,24 +381,24 @@
     - ถ้าเรียกซ้ำ → `turnstile.reset` แล้ว execute ใหม่
   - `App.submit.run() -> Promise<void>` (action `submit`):
     1. `state.sending = true` → ปุ่มขึ้นข้อความ `sending` และถูก disable
-    2. ทำการตรวจของ Task 6
+    2. `checkAll` ของ Task 6 (ถ้าไม่ผ่านให้พาไปส่วนที่ขาดแล้วหยุด)
     3. `draft.save`
     4. ขอ token
     5. `fetch('/api/submit', {method:'POST', headers:{'content-type':'application/json'}, body})` แล้วส่งผลให้ `classify`
     6. แยกตามผล:
        - `ok` → `draft.clear()` แล้ว `location.replace('thanks.html')`
-       - `turnstile` / `rate` / `invalid` → แสดง notice ของกรณีนั้น (invalid มีปุ่มคัดลอกด้วย)
-       - `down` (รวม network error) → ขอ token ใหม่ แล้ว POST แบบ `text/plain` ไปที่ `App.config.sheetsUrl` ด้วย body `{auth:'turnstile', token, cid, data}` ถ้าได้ `{ok:true}` ให้ทำแบบเดียวกับ `ok` ถ้าไม่ได้ ให้แสดง notice `unavailable` พร้อมปุ่ม `retry` และ `copy`
-    7. ถ้า token reject → notice `noTurnstile` + ปุ่ม `copy`
+       - `turnstile` / `rate` / `invalid` → แสดง notice ของกรณีนั้น
+       - `down` (รวม network error) → ขอ token ใหม่ แล้ว POST แบบ `text/plain` ไปที่ `App.config.sheetsUrl` ด้วย body `{auth:'turnstile', token, cid, data}` ถ้าได้ `{ok:true}` ให้ทำแบบเดียวกับ `ok` ถ้าไม่ได้ ให้แสดง notice `unavailable` พร้อมปุ่ม `retry` (ร่างยังอยู่)
+    7. ถ้า token reject → notice `noTurnstile` + ปุ่ม `retry`
   - `App.state.notice` เพิ่มชนิด `{kind:'send', code}` และ `{kind:'draft'}` ตอน boot ถ้า `draft.role === role` จะแสดงแถบร่างพร้อม action `draftresume` (restore แล้วไปที่ `draft.step`) และ `draftdiscard`
   - `App.data.submit` (เพิ่มเติม):
     - `sending: 'กำลังส่ง…'`
     - `turnstile: 'ยืนยันตัวตนไม่สำเร็จ กรุณากดส่งอีกครั้ง'`
     - `rate: 'ส่งถี่เกินไป รอสักครู่แล้วลองใหม่'`
-    - `invalid: 'ข้อมูลไม่ถูกต้อง กรุณาคัดลอกคำตอบแล้วส่งให้ผู้จัดทำ'`
+    - `invalid: 'ข้อมูลไม่ถูกต้อง กรุณาตรวจคำตอบแล้วส่งอีกครั้ง'`
     - `unavailable: 'ระบบรับคำตอบขัดข้องชั่วคราว คำตอบยังอยู่ในเครื่องนี้ ลองใหม่ภายหลังได้ (โควตารีเซ็ต 07:00 น.)'`
     - `noTurnstile: 'โหลดระบบยืนยันตัวตนไม่สำเร็จ ตรวจสอบอินเทอร์เน็ตแล้วกดส่งอีกครั้ง'`
-    - `retry: 'ส่งอีกครั้ง'`, `copy: 'คัดลอกคำตอบ'`, `copied: 'คัดลอกแล้ว'`
+    - `retry: 'ส่งอีกครั้ง'`
     - `draft: 'มีคำตอบที่ยังส่งไม่สำเร็จจากครั้งก่อน'`, `draftResume: 'ส่งต่อ'`, `draftDiscard: 'ทิ้ง'`
   - survey.html เพิ่ม `<script defer src="js/config.js">`, `<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer>`, `<div id="ts"></div>` และ honeypot `<div class="absolute -left-[9999px]" aria-hidden="true"><input id="hp" name="website" tabindex="-1" autocomplete="off"></div>` (ค่าของ `#hp` ส่งไปในฟิลด์ `hp`)
   - thanks.html (static ไม่มี JS): `ui.pageTitle('ขอบคุณค่ะ 🙏')` + card ข้อความ `'ส่งคำตอบเรียบร้อยแล้ว ขอบคุณที่สละเวลาตอบแบบสอบถาม'` + `<a href="index.html">เริ่มใหม่</a>` ที่ใช้ class ของ secondaryButton และ `inline-block`
@@ -378,14 +410,14 @@
   - fixture `turnstile-stub.js` กำหนด `window.turnstile = {render(el,o){…return 'w1'}, execute(){setTimeout(()=>o.callback('XXXX.DUMMY.TOKEN.XXXX'))}, reset(){}}` และ serve ผ่าน `page.route('**/turnstile/v0/api.js*')`
   - ทุก route ที่ fulfill ไป `http://localhost:8790/exec` ต้องใส่ header `access-control-allow-origin: *`
   - test ที่ต้องมี:
-    - `staff run posts envelope with legacy data`: เลือก pos=พยาบาล, yrs=5, scale ใน B (ถ้ามี), multi, rank 3 อันดับ, body คอ, จุด A3 (t คับแคบ, p พนักพิง, sev 4) กดบันทึก, textarea ภาษาไทย แล้ว mock `/api/submit` 201 `{ok:true}` → expect `v===1`, `cid` ตรงกับ uuid v4, `token === 'XXXX.DUMMY.TOKEN.XXXX'`, `hp === ''`, `data` deepEqual object literal ที่เขียนไว้ใน test → URL เป็น `/thanks.html` และ `localStorage['eve-draft']` เป็น null
+    - `staff run posts envelope with legacy data`: ตอบครบทุกข้อบังคับด้วย helper `answerAll(page, 'staff', answers)` (ใน `tests/e2e/helpers.js` ใช้ object คำตอบเดียวกับที่ใช้เป็นค่า expected) ได้แก่ pos=พยาบาล, yrs=5, rank 3 อันดับ, body คอ, จุด A3 (t คับแคบ, p พนักพิง, sev 4) และ textarea ภาษาไทย แล้ว mock `/api/submit` 201 `{ok:true}` → expect `v===1`, `cid` ตรงกับ uuid v4, `token === 'XXXX.DUMMY.TOKEN.XXXX'`, `hp === ''`, `data` deepEqual object literal ที่เขียนไว้ใน test → URL เป็น `/thanks.html` และ `localStorage['eve-draft']` เป็น null
     - `donor run posts envelope` (เลือกคำตอบน้อยกว่า)
-    - `unsaved point: save`, `unsaved point: drop`, `unsaved point: back` (data ที่ได้ไม่มี `tmp` และปุ่ม back ไปที่ส่วน D)
+    - `submit re-checks all sections`: กู้ร่างที่ขาดข้อในส่วน B แล้วกดส่ง → พาไปส่วน B และไม่มีคำขอไป `/api/submit`
     - `double click sends exactly one request`: mock ตอบช้า 1 วินาที แล้วกดซ้ำ 2 ครั้ง → นับคำขอได้ 1
     - `worker down falls back to Apps Script`: `/api/submit` → 503 แบบ `text/html` แล้ว exec ได้ body ที่มี `auth:'turnstile'` → ตอบ `{ok:true}` → ไป thanks
-    - `both down shows unavailable with retry and copy and keeps draft`
+    - `both down shows unavailable with retry, keeps draft, and has no copy button or JSON on the page`
     - `403 turnstile message` และ `429 rate message`
-    - `turnstile script blocked shows message, no page error`: `page.route('**/turnstile/**', r => r.abort())` → notice `noTurnstile`, ปุ่มคัดลอกแสดงอยู่ และไม่มี `pageerror`
+    - `turnstile script blocked shows message, no page error`: `page.route('**/turnstile/**', r => r.abort())` → notice `noTurnstile`, ร่างยังอยู่ และไม่มี `pageerror`
     - `draft banner resumes answers`: เขียน `eve-draft` ล่วงหน้าแล้วเปิดหน้า → กด `ส่งต่อ` → คำตอบกลับมาครบ
 - [ ] **Step 3: รันแล้วต้อง fail**
   Run: `npm run test:unit && npm run e2e -- tests/e2e/submit.spec.js`
