@@ -1,3 +1,6 @@
+@tailwind base;
+@tailwind components;
+
 /* Styles that are awkward to express with Tailwind utilities */
 
 /* Visible keyboard focus everywhere */
@@ -75,3 +78,6 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* Utilities last: the Play CDN injected its CSS after this file, so utilities won over these rules */
+@tailwind utilities;
