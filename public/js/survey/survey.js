@@ -248,15 +248,6 @@ window.App = window.App || {};
     render({ top: true });
   }
 
-  let toastTimer;
-  function toast(text) {
-    const box = document.getElementById('toast');
-    box.firstElementChild.textContent = text;
-    box.classList.remove('opacity-0');
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(function () { box.classList.add('opacity-0'); }, 2200);
-  }
-
   // ---------- actions ----------
   const S = function () { return App.state; };
   const actions = {
