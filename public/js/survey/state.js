@@ -62,7 +62,10 @@ window.App = window.App || {};
     toggleRegion: function (id) {
       const d = App.data.msd;
       if (App.state.msd[id]) delete App.state.msd[id];
-      else App.state.msd[id] = { y: d.year.default, w: d.week.default, s: d.sev.default };
+      else {
+        App.state.msd[id] = { y: d.year.default, w: d.week.default, s: d.sev.default };
+        delete App.state.answers.noMsd;
+      }
     },
     setRegionField: function (id, field, value) {
       if (App.state.msd[id]) App.state.msd[id][field] = value;
@@ -94,11 +97,24 @@ window.App = window.App || {};
     saveZone: function (id) {
       const e = App.store.zoneEntry(id, true);
       delete e.tmp;
+      delete App.state.answers.noMap;
       App.state.openZone = null;
     },
     removeZone: function (id) {
       delete App.state.map[id];
       App.state.openZone = null;
+    },
+
+    // ปุ่ม "ไม่มีอาการปวดเมื่อย" / "ไม่พบปัญหา": เปิดแล้วล้างจุดที่เลือกไว้
+    setNone: function (kind, on) {
+      const key = kind === 'msd' ? 'noMsd' : 'noMap';
+      if (on) {
+        App.state.answers[key] = true;
+        App.state[kind] = {};
+        App.state.openZone = null;
+      } else {
+        delete App.state.answers[key];
+      }
     },
 
     toJSON: function () {

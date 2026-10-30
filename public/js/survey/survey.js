@@ -9,17 +9,19 @@ window.App = window.App || {};
 
   function item(q) {
     const a = App.state.answers;
+    const m = App.state.missing;
+    const err = m && m.key === q.key ? m.message : '';
     switch (q.type) {
       case 'pills':
         return ui.field(q.label, ui.pillGroup(q.options.map(function (o) {
           return ui.pill(ui.esc(o), a[q.key] === o, { action: 'pick', key: q.key, value: o });
-        }).join('')), q.large);
+        }).join('')), q.large, err);
 
       case 'scale':
         return ui.field(q.label, ui.pillGroup(q.options.map(function (o) {
           const label = '<span class="mr-1.5 text-[17px] leading-none" aria-hidden="true">' + o.emoji + '</span>' + ui.esc(o.label);
           return ui.pill(label, a[q.key] === o.value, { action: 'scale', key: q.key, value: o.value }, 'inline-flex items-center');
-        }).join('')));
+        }).join('')), false, err);
 
       case 'multi': {
         const list = a[q.key] || [];
@@ -30,7 +32,7 @@ window.App = window.App || {};
           if (q.max) data.max = q.max;
           if (q.only) data.only = q.only;
           return ui.pill(ui.esc(o), on, data, !on && full ? 'opacity-50' : '');
-        }).join('')));
+        }).join('')), false, err);
       }
 
       case 'rank': {
@@ -39,29 +41,58 @@ window.App = window.App || {};
           const n = list.indexOf(o) + 1;
           const num = n ? '<span class="mr-1.5 inline-grid h-5 w-5 place-items-center rounded-full bg-white text-xs font-bold text-blood">' + n + '</span>' : '';
           return ui.pill(num + ui.esc(o), n > 0, { action: 'rank', key: q.key, value: o, max: q.max }, 'inline-flex items-center');
-        }).join('')));
+        }).join('')), false, err);
       }
 
       case 'number':
-        return ui.field(q.label, ui.input('number', { key: q.key }, a[q.key], '', ''));
+        return ui.field(q.label, ui.input('number', { key: q.key }, a[q.key], '', ''), false, err);
 
       case 'textarea':
-        return ui.field(q.label, ui.textarea({ key: q.key }, a[q.key]));
+        return ui.field(q.label, ui.textarea({ key: q.key }, a[q.key]), false, err);
     }
     return '';
+  }
+
+  // ข้อความเตือนใต้แผนภาพ/ผัง เมื่อ key ที่ขาดอยู่ในส่วนนี้ (msd, msd.<ส่วน>, map, map.<จุด>)
+  function componentError(prefix) {
+    const m = App.state.missing;
+    if (!m || (m.key !== prefix && m.key.indexOf(prefix + '.') !== 0)) return '';
+    return '<div data-missing>' + ui.fieldError(m.message) + '</div>';
+  }
+
+  function noneButton(kind) {
+    const t = App.data.submit;
+    const on = !!App.state.answers[kind === 'msd' ? 'noMsd' : 'noMap'];
+    return '<div class="mt-4">' + ui.pill(ui.esc(kind === 'msd' ? t.noMsd : t.noMap), on, { action: 'none', kind: kind }) + '</div>';
   }
 
   function component(sec) {
     const s = App.state;
     if (sec.component === 'bodyMap') {
-      return App.bodyMap.render({ mode: 'input', selected: s.msd }) + App.bodyMap.details(s.msd);
+      return App.bodyMap.render({ mode: 'input', selected: s.msd }) + App.bodyMap.details(s.msd) +
+        noneButton('msd') + componentError('msd');
     }
     if (sec.component === 'busMap') {
       return App.busMap.render({ mode: 'input', entries: s.map, openId: s.openZone }) +
         (s.openZone ? App.busMap.form(s.openZone, s.map[s.openZone]) : '') +
-        App.busMap.savedList(s.map);
+        (s.openZone && s.zoneError ? ui.fieldError(App.data.submit.needType) : '') +
+        App.busMap.savedList(s.map) + noneButton('map') + componentError('map');
     }
     return '';
+  }
+
+  // กล่องเตือนจุดบนผังที่ยังไม่ได้กด "บันทึกจุดนี้"
+  function tmpNotice(ids) {
+    const t = App.data.submit;
+    const names = ids.map(function (id) { return App.data.findArea(id).label; }).join(', ');
+    return '<div class="mt-4 rounded-xl border border-blood/70 bg-white p-4" role="alert" data-missing>' +
+      '<p class="text-[15px] font-semibold">' + ui.esc(t.tmpTitle.replace('{n}', ids.length)) + '</p>' +
+      '<p class="mt-1 text-[13px] text-muted">' + ui.esc(names) + '</p>' +
+      '<div class="mt-3 flex flex-wrap gap-2">' +
+      ui.primaryButton(t.tmpSave, { action: 'tmpsave' }) +
+      ui.secondaryButton(t.tmpDrop, { action: 'tmpdrop' }) +
+      ui.secondaryButton(t.tmpBack, { action: 'tmpback' }) +
+      '</div></div>';
   }
 
   function renderSurvey() {
@@ -80,7 +111,9 @@ window.App = window.App || {};
       component(sec) +
       (sec.items.length ? '<div class="' + (sec.component ? 'mt-5 ' : '') + 'space-y-5">' + sec.items.map(item).join('') + '</div>' : '');
 
-    return progress + ui.card(body) +
+    const notice = App.state.notice && App.state.notice.kind === 'tmp' ? tmpNotice(App.state.notice.ids) : '';
+
+    return progress + ui.card(body) + notice +
       '<div class="mt-4 flex items-center justify-between">' +
       ui.secondaryButton(nav.back, { action: 'back' }) +
       ui.primaryButton(last ? nav.submit : nav.next, { action: last ? 'submit' : 'next' }) +
@@ -96,6 +129,11 @@ window.App = window.App || {};
 
   function render(opts) {
     opts = opts || {};
+    const st = App.state;
+    if (st.missing && st.screen === 'survey') {
+      const p = App.submit.checkStep(st, st.step);
+      if (!p || p.key !== st.missing.key) st.missing = null;
+    }
     const key = focusKey(document.activeElement);
     root.innerHTML = App.state.screen === 'thanks' ? App.pages.thanks.render() : renderSurvey();
     if (opts.top) {
@@ -110,7 +148,59 @@ window.App = window.App || {};
     }
   }
 
+  function scrollToMissing() {
+    const el = root.querySelector('[data-missing]');
+    if (!el) return;
+    const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    el.scrollIntoView({ block: 'center', behavior: smooth ? 'smooth' : 'auto' });
+  }
+
+  // ตรวจส่วนปัจจุบัน: คืน true ถ้าไปต่อได้ ถ้าไม่ได้จะแสดงสิ่งที่ขาดแล้วเลื่อนไปหา
+  function stepReady() {
+    const st = App.state;
+    // จุดที่ยังไม่ได้บันทึกเตือนก่อน เพราะบอกได้ตรงกว่าว่าต้องทำอะไร
+    const sec = App.data.sections[st.role][st.step];
+    const pending = sec.component === 'busMap' ? App.submit.pendingZones(st.map) : [];
+    if (pending.length) {
+      st.missing = null;
+      st.notice = { kind: 'tmp', ids: pending };
+      st.openZone = null;
+      render();
+      scrollToMissing();
+      return false;
+    }
+    const p = App.submit.checkStep(st, st.step);
+    if (p) {
+      st.missing = p;
+      st.notice = null;
+      render();
+      scrollToMissing();
+      return false;
+    }
+    return true;
+  }
+
+  function finishStep() {
+    const st = App.state;
+    if (st.step < App.data.sections[st.role].length - 1) {
+      go('survey', st.step + 1);
+      return;
+    }
+    const p = App.submit.checkAll(st);
+    if (p) {
+      go('survey', p.step);
+      st.missing = p;
+      render();
+      scrollToMissing();
+      return;
+    }
+    go('thanks');
+  }
+
   function go(screen, step) {
+    App.state.missing = null;
+    App.state.notice = null;
+    App.state.zoneError = false;
     App.state.screen = screen;
     if (step !== undefined) App.state.step = step;
     App.state.openZone = null;
@@ -157,8 +247,29 @@ window.App = window.App || {};
       if (S().step === 0) location.href = 'index.html';
       else go('survey', S().step - 1);
     },
-    next: function () { go('survey', S().step + 1); },
-    submit: function () { go('thanks'); },
+    next: function () { if (stepReady()) finishStep(); },
+    submit: function () { if (stepReady()) finishStep(); },
+    tmpsave: function () {
+      S().map = App.submit.resolveTmp(S().map, 'save');
+      S().notice = null;
+      if (S().map && Object.keys(S().map).some(function (k) { return !S().map[k].tmp; })) delete S().answers.noMap;
+      actions.next();
+    },
+    tmpdrop: function () {
+      S().map = App.submit.resolveTmp(S().map, 'drop');
+      S().notice = null;
+      actions.next();
+    },
+    tmpback: function () {
+      const ids = App.submit.pendingZones(S().map);
+      S().notice = null;
+      actions.zone({ id: ids[0] });
+    },
+    none: function (d) {
+      const key = d.kind === 'msd' ? 'noMsd' : 'noMap';
+      App.store.setNone(d.kind, !S().answers[key]);
+      render();
+    },
     restart: function () { location.href = 'index.html'; },
     copy: function (d, el) { copyAnswers(el); },
 
@@ -170,6 +281,7 @@ window.App = window.App || {};
 
     zone: function (d) {
       S().openZone = d.id;
+      S().zoneError = false;
       render();
       const form = document.getElementById('zone-form');
       if (form) {
@@ -179,7 +291,17 @@ window.App = window.App || {};
     },
     zlist: function (d) { App.store.toggleZoneList(S().openZone, d.field, d.value); render(); },
     zsev: function (d) { App.store.setZoneField(S().openZone, 'sev', Number(d.value)); render(); },
-    zsave: function () { App.store.saveZone(S().openZone); render(); },
+    zsave: function () {
+      const e = App.store.zoneEntry(S().openZone, false);
+      if (!e || !e.t.length) {
+        S().zoneError = true;
+        render();
+        return;
+      }
+      S().zoneError = false;
+      App.store.saveZone(S().openZone);
+      render();
+    },
     zdel: function () { App.store.removeZone(S().openZone); render(); }
   };
 

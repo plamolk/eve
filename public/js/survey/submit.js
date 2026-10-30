@@ -1,0 +1,108 @@
+// ตรวจคำตอบก่อนไปส่วนถัดไป/ก่อนส่ง และเตรียม data ที่จะส่ง (ไม่แตะ DOM)
+window.App = window.App || {};
+
+(function () {
+  const DATA_MAX_BYTES = 13824;
+  const NUMBER_MAX = 9999;
+  const TEXT_MAX = 2000;
+  const NOTE_MAX = 500;
+  const NUMBER_RE = /^\d+(\.\d+)?$/;
+
+  function isEmpty(v) {
+    return v === undefined || v === null || v === '' || (Array.isArray(v) && v.length === 0);
+  }
+
+  function problem(step, key, name) {
+    return { step: step, key: key, message: App.data.submit[name] };
+  }
+
+  function checkItem(q, v) {
+    if (isEmpty(v) || (q.type === 'textarea' && String(v).trim() === '')) {
+      return q.optional ? null : 'required';
+    }
+    if (q.type === 'rank' && v.length < q.max) return 'rankAll';
+    if (q.type === 'number') {
+      const s = String(v);
+      if (s.length > 8 || !NUMBER_RE.test(s) || Number(s) > NUMBER_MAX) return 'number';
+    }
+    if (q.type === 'textarea' && String(v).length > TEXT_MAX) return 'tooLong';
+    return null;
+  }
+
+  function checkBody(state, step) {
+    const ids = Object.keys(state.msd);
+    if (!ids.length) return state.answers.noMsd ? null : problem(step, 'msd', 'needMsd');
+    for (const id of ids) {
+      const s = state.msd[id].s;
+      if (typeof s !== 'number' || !isFinite(s) || s < 0 || s > 10) return problem(step, 'msd.' + id, 'severity');
+    }
+    return null;
+  }
+
+  function checkBus(state, step) {
+    const saved = Object.keys(state.map).filter(function (id) { return !state.map[id].tmp; });
+    if (!saved.length && !state.answers.noMap) return problem(step, 'map', 'needMap');
+    for (const id of saved) {
+      if (String(state.map[id].n || '').length > NOTE_MAX) return problem(step, 'map.' + id, 'tooLong');
+    }
+    return null;
+  }
+
+  function checkStep(state, step) {
+    const sec = App.data.sections[state.role][step];
+    if (sec.component === 'bodyMap') {
+      const p = checkBody(state, step);
+      if (p) return p;
+    }
+    if (sec.component === 'busMap') {
+      const p = checkBus(state, step);
+      if (p) return p;
+    }
+    for (const q of sec.items) {
+      const name = checkItem(q, state.answers[q.key]);
+      if (name) return problem(step, q.key, name);
+    }
+    return null;
+  }
+
+  function buildData(state) {
+    return JSON.parse(JSON.stringify({ role: state.role, answers: state.answers, msd: state.msd, map: state.map }));
+  }
+
+  function checkAll(state) {
+    const sections = App.data.sections[state.role];
+    for (let i = 0; i < sections.length; i++) {
+      const p = checkStep(state, i);
+      if (p) return p;
+    }
+    const bytes = new TextEncoder().encode(JSON.stringify(buildData(state))).length;
+    if (bytes > DATA_MAX_BYTES) return problem(sections.length - 1, '', 'tooLarge');
+    return null;
+  }
+
+  function pendingZones(map) {
+    return Object.keys(map).filter(function (id) { return map[id].tmp; });
+  }
+
+  // save = บันทึกจุด tmp ที่เลือกประเภทแล้ว (จุดที่ยังไม่มีประเภทยังเป็น tmp) / drop = ทิ้งจุด tmp ทั้งหมด
+  function resolveTmp(map, mode) {
+    const out = {};
+    Object.keys(map).forEach(function (id) {
+      const e = JSON.parse(JSON.stringify(map[id]));
+      if (e.tmp) {
+        if (mode === 'drop') return;
+        if (e.t && e.t.length) delete e.tmp;
+      }
+      out[id] = e;
+    });
+    return out;
+  }
+
+  App.submit = {
+    checkStep: checkStep,
+    checkAll: checkAll,
+    buildData: buildData,
+    pendingZones: pendingZones,
+    resolveTmp: resolveTmp
+  };
+})();

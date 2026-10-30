@@ -12,13 +12,30 @@ async function step(page, name) {
   await expect(page).toHaveScreenshot(name + '.png', { fullPage: true });
 }
 
+// Answer the section on screen (after its screenshot) so "ถัดไป" is allowed.
+async function fillSection(page) {
+  const keys = (action) => page.locator(`[data-action="${action}"]`).evaluateAll(
+    (els) => [...new Set(els.map((e) => e.dataset.key))]);
+  for (const action of ['pick', 'scale', 'multi']) {
+    for (const k of await keys(action)) await page.locator(`[data-action="${action}"][data-key="${k}"]`).first().click();
+  }
+  for (const k of await keys('rank')) {
+    for (let i = 0; i < 3; i++) await page.locator(`[data-action="rank"][data-key="${k}"]`).nth(i).click();
+  }
+  for (const el of await page.locator('input[type="number"][data-key]').all()) await el.fill('1');
+  for (const el of await page.locator('textarea[data-key]').all()) await el.fill('ทดสอบ');
+  for (const el of await page.locator('[data-action="none"]').all()) await el.click();
+}
+
 async function next(page) {
+  await fillSection(page);
   await page.getByText('ถัดไป', { exact: true }).click();
 }
 
 async function start(page, role) {
   await page.goto('/');
   await page.getByText(role, { exact: true }).click();
+  await page.locator('[role="progressbar"]').waitFor(); // role scripts load before the first render
 }
 
 test('intro', async ({ page }) => {
@@ -39,6 +56,7 @@ for (const [label, prefix, parts] of [['เจ้าหน้าที่', 'sta
 test('thanks-pilot', async ({ page }) => {
   await start(page, 'เจ้าหน้าที่');
   for (let i = 0; i < STAFF.length - 1; i++) await next(page);
+  await fillSection(page);
   await page.getByText('ส่งคำตอบ', { exact: true }).click();
   await step(page, 'thanks-pilot');
 });

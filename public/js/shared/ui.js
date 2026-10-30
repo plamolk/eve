@@ -37,8 +37,14 @@ window.App = window.App || {};
       return '<p class="mb-2 font-semibold ' + (large ? 'text-[17px]' : 'text-[15px]') + '">' + esc(text) + '</p>';
     },
 
-    field: function (labelText, inner, large) {
-      return '<div>' + App.ui.label(labelText, large) + inner + '</div>';
+    // error = ข้อความเตือนเมื่อยังไม่ได้ตอบ (ไม่มี error → HTML เหมือนเดิม)
+    field: function (labelText, inner, large, error) {
+      if (!error) return '<div>' + App.ui.label(labelText, large) + inner + '</div>';
+      return '<div class="rounded-lg p-2 ring-2 ring-blood" data-missing>' + App.ui.label(labelText, large) + inner + App.ui.fieldError(error) + '</div>';
+    },
+
+    fieldError: function (text) {
+      return '<p class="mt-2 text-[13px] font-medium text-blood" role="alert">' + esc(text) + '</p>';
     },
 
     input: function (type, data, value, extra) {
