@@ -81,6 +81,26 @@ window.App = window.App || {};
     return '';
   }
 
+  // ผลการส่งที่ไม่สำเร็จ (ไม่มีปุ่มคัดลอก คำตอบเก็บเป็นร่างในเครื่อง)
+  function sendNotice(code) {
+    const t = App.data.submit;
+    const retry = code === 'unavailable' || code === 'noTurnstile';
+    return '<div class="mt-4 rounded-xl border border-blood/70 bg-white p-4" role="alert" data-missing>' +
+      '<p class="text-[15px] font-semibold text-blood">' + ui.esc(t[code]) + '</p>' +
+      (retry ? '<div class="mt-3">' + ui.primaryButton(t.retry, { action: 'submit' }) + '</div>' : '') +
+      '</div>';
+  }
+
+  function draftBanner() {
+    const t = App.data.submit;
+    return '<div class="mb-4 rounded-xl border border-blood/70 bg-white p-4" role="status">' +
+      '<p class="text-[15px] font-semibold">' + ui.esc(t.draft) + '</p>' +
+      '<div class="mt-3 flex flex-wrap gap-2">' +
+      ui.primaryButton(t.draftResume, { action: 'draftresume' }) +
+      ui.secondaryButton(t.draftDiscard, { action: 'draftdiscard' }) +
+      '</div></div>';
+  }
+
   // กล่องเตือนจุดบนผังที่ยังไม่ได้กด "บันทึกจุดนี้"
   function tmpNotice(ids) {
     const t = App.data.submit;
@@ -111,12 +131,16 @@ window.App = window.App || {};
       component(sec) +
       (sec.items.length ? '<div class="' + (sec.component ? 'mt-5 ' : '') + 'space-y-5">' + sec.items.map(item).join('') + '</div>' : '');
 
-    const notice = App.state.notice && App.state.notice.kind === 'tmp' ? tmpNotice(App.state.notice.ids) : '';
+    const n = App.state.notice;
+    const notice = !n ? '' : n.kind === 'tmp' ? tmpNotice(n.ids) : n.kind === 'send' ? sendNotice(n.code) : '';
+    const banner = n && n.kind === 'draft' ? draftBanner() : '';
 
-    return progress + ui.card(body) + notice +
+    return banner + progress + ui.card(body) + notice +
       '<div class="mt-4 flex items-center justify-between">' +
       ui.secondaryButton(nav.back, { action: 'back' }) +
-      ui.primaryButton(last ? nav.submit : nav.next, { action: last ? 'submit' : 'next' }) +
+      (last && App.state.sending
+      ? ui.primaryButton(App.data.submit.sending, { action: 'submit' }, true)
+      : ui.primaryButton(last ? nav.submit : nav.next, { action: last ? 'submit' : 'next' })) +
       '</div>';
   }
 
@@ -130,12 +154,12 @@ window.App = window.App || {};
   function render(opts) {
     opts = opts || {};
     const st = App.state;
-    if (st.missing && st.screen === 'survey') {
+    if (st.missing) {
       const p = App.submit.checkStep(st, st.step);
       if (!p || p.key !== st.missing.key) st.missing = null;
     }
     const key = focusKey(document.activeElement);
-    root.innerHTML = App.state.screen === 'thanks' ? App.pages.thanks.render() : renderSurvey();
+    root.innerHTML = renderSurvey();
     if (opts.top) {
       window.scrollTo(0, 0);
       return;
@@ -183,26 +207,43 @@ window.App = window.App || {};
   function finishStep() {
     const st = App.state;
     if (st.step < App.data.sections[st.role].length - 1) {
-      go('survey', st.step + 1);
+      go(st.step + 1);
       return;
     }
     const p = App.submit.checkAll(st);
     if (p) {
-      go('survey', p.step);
+      go(p.step);
       st.missing = p;
       render();
       scrollToMissing();
       return;
     }
-    go('thanks');
+    sendAnswers();
   }
 
-  function go(screen, step) {
+  function sendAnswers() {
+    const st = App.state;
+    if (st.sending) return;
+    st.sending = true;
+    st.notice = null;
+    render();
+    App.submit.send(st, function (code) {
+      if (code === 'ok') {
+        location.replace('thanks.html');
+        return;
+      }
+      st.sending = false;
+      st.notice = { kind: 'send', code: code };
+      render();
+      scrollToMissing();
+    });
+  }
+
+  function go(step) {
     App.state.missing = null;
     App.state.notice = null;
     App.state.zoneError = false;
-    App.state.screen = screen;
-    if (step !== undefined) App.state.step = step;
+    App.state.step = step;
     App.state.openZone = null;
     render({ top: true });
   }
@@ -216,36 +257,12 @@ window.App = window.App || {};
     toastTimer = setTimeout(function () { box.classList.add('opacity-0'); }, 2200);
   }
 
-  function copyAnswers(btn) {
-    const text = App.store.toJSON();
-    const done = function () {
-      const original = btn.textContent;
-      btn.textContent = App.data.thanks.copied;
-      setTimeout(function () { btn.textContent = original; }, 1500);
-    };
-    if (navigator.clipboard && window.isSecureContext) {
-      navigator.clipboard.writeText(text).then(done, fallback);
-    } else {
-      fallback();
-    }
-    function fallback() {
-      // เปิดไฟล์ตรง ๆ (file://) บางเบราว์เซอร์ไม่อนุญาต clipboard API
-      const pre = document.getElementById('answer-json');
-      const range = document.createRange();
-      range.selectNodeContents(pre);
-      const sel = window.getSelection();
-      sel.removeAllRanges();
-      sel.addRange(range);
-      try { document.execCommand('copy'); done(); } catch (e) { /* ข้อความถูกเลือกไว้ให้กดคัดลอกเอง */ }
-    }
-  }
-
   // ---------- actions ----------
   const S = function () { return App.state; };
   const actions = {
     back: function () {
       if (S().step === 0) location.href = 'index.html';
-      else go('survey', S().step - 1);
+      else go(S().step - 1);
     },
     next: function () { if (stepReady()) finishStep(); },
     submit: function () { if (stepReady()) finishStep(); },
@@ -270,8 +287,15 @@ window.App = window.App || {};
       App.store.setNone(d.kind, !S().answers[key]);
       render();
     },
-    restart: function () { location.href = 'index.html'; },
-    copy: function (d, el) { copyAnswers(el); },
+    draftresume: function () {
+      App.store.restore(S().notice.draft);
+      go(App.state.step);
+    },
+    draftdiscard: function () {
+      App.draft.clear();
+      S().notice = null;
+      render();
+    },
 
     pick: function (d) { App.store.toggleSingle(d.key, d.value); render(); },
     scale: function (d) { App.store.toggleSingle(d.key, Number(d.value)); render(); },
@@ -365,6 +389,8 @@ window.App = window.App || {};
     loadScripts(ROLE_SCRIPTS[role], function () {
       App.store.reset();
       App.state.role = role;
+      const d = App.draft.load();
+      if (d && d.v === 1 && d.role === role) App.state.notice = { kind: 'draft', draft: d };
       render({ top: true });
     });
   }

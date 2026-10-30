@@ -4,7 +4,7 @@ window.App = window.App || {};
 (function () {
   function fresh() {
     return {
-      screen: 'survey', // survey | thanks
+      cid: crypto.randomUUID(), // ใช้กันข้อมูลซ้ำเมื่อส่งซ้ำ
       step: 0,         // index ของส่วน A–F
       role: null,
       answers: {},
@@ -23,6 +23,13 @@ window.App = window.App || {};
   App.store = {
     reset: function () {
       App.state = fresh();
+    },
+
+    // กู้ร่างที่ส่งไม่สำเร็จ (จาก App.draft)
+    restore: function (d) {
+      App.state = Object.assign(fresh(), {
+        cid: d.cid, role: d.role, step: d.step, answers: d.answers, msd: d.msd, map: d.map
+      });
     },
 
     setAnswer: function (key, value) {

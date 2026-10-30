@@ -98,11 +98,116 @@ window.App = window.App || {};
     return out;
   }
 
+  // ---------- ส่งคำตอบ ----------
+
+  // ผลจาก /api/submit → ok | turnstile | rate | invalid | down (down = Worker ใช้ไม่ได้ ให้ไปทางสำรอง)
+  function classify(res) {
+    const j = res.json;
+    if ((res.status === 201 || res.status === 202) && j && j.ok) return 'ok';
+    if (res.status === 403 && j && j.error === 'turnstile') return 'turnstile';
+    if (res.status === 429 && j && j.error === 'rate') return 'rate';
+    if ((res.status === 400 || res.status === 413) && j) return 'invalid';
+    return 'down';
+  }
+
+  // ร่างสำรองในเบราว์เซอร์ (ใช้เฉพาะตอนส่งไม่สำเร็จ ลบเมื่อส่งสำเร็จ)
+  const DRAFT_KEY = 'eve-draft';
+  const draft = {
+    save: function (d) {
+      try { window.localStorage.setItem(DRAFT_KEY, JSON.stringify(d)); } catch (e) { /* เก็บไม่ได้ก็ทำงานต่อ */ }
+    },
+    load: function () {
+      try {
+        const raw = window.localStorage.getItem(DRAFT_KEY);
+        return raw ? JSON.parse(raw) : null;
+      } catch (e) {
+        return null;
+      }
+    },
+    clear: function () {
+      try { window.localStorage.removeItem(DRAFT_KEY); } catch (e) { /* ignore */ }
+    }
+  };
+
+  // Turnstile แบบ execute: ขอ token ตอนกดส่ง (token มีอายุ 300 วินาที)
+  let widget = null;
+  let waiting = null;
+  function token() {
+    return new Promise(function (resolve, reject) {
+      const ts = window.turnstile;
+      if (!ts) return reject(new Error('turnstile unavailable'));
+      const timer = setTimeout(function () { waiting = null; reject(new Error('turnstile timeout')); }, 30000);
+      waiting = {
+        ok: function (t) { clearTimeout(timer); waiting = null; resolve(t); },
+        fail: function () { clearTimeout(timer); waiting = null; reject(new Error('turnstile error')); }
+      };
+      try {
+        if (widget === null) {
+          widget = ts.render('#ts', {
+            sitekey: App.config.turnstileSiteKey,
+            execution: 'execute',
+            action: 'submit',
+            appearance: 'interaction-only',
+            callback: function (t) { if (waiting) waiting.ok(t); },
+            'error-callback': function () { if (waiting) waiting.fail(); }
+          });
+        } else {
+          ts.reset(widget);
+        }
+        ts.execute(widget);
+      } catch (e) {
+        waiting.fail();
+      }
+    });
+  }
+
+  async function post(url, body, contentType) {
+    try {
+      const r = await fetch(url, { method: 'POST', headers: { 'content-type': contentType }, body: JSON.stringify(body) });
+      let json = null;
+      try { json = await r.json(); } catch (e) { json = null; }
+      return { status: r.status, json: json };
+    } catch (e) {
+      return null; // network error
+    }
+  }
+
+  // ทางสำรอง: ส่งตรงไป Apps Script (Apps Script ตรวจ Turnstile เอง)
+  async function sendToSheets(cid, data) {
+    let t;
+    try { t = await token(); } catch (e) { return false; }
+    const res = await post(App.config.sheetsUrl, { auth: 'turnstile', token: t, cid: cid, data: data }, 'text/plain;charset=utf-8');
+    return !!(res && res.json && res.json.ok === true);
+  }
+
+  // ส่งคำตอบ (เรียกหลังผ่าน checkAll แล้ว) และรายงานผลผ่าน onDone(code) — code: ok | turnstile | rate | invalid | unavailable | noTurnstile
+  async function send(state, onDone) {
+    const data = buildData(state);
+    draft.save({ v: 1, cid: state.cid, role: state.role, step: state.step, answers: state.answers, msd: state.msd, map: state.map });
+    let t;
+    try {
+      t = await token();
+    } catch (e) {
+      return onDone('noTurnstile');
+    }
+    const hp = document.getElementById('hp');
+    const res = await post('/api/submit', { v: 1, cid: state.cid, token: t, hp: hp ? hp.value : '', data: data }, 'application/json');
+    let kind = res ? classify(res) : 'down';
+    if (kind === 'down') kind = (await sendToSheets(state.cid, data)) ? 'ok' : 'unavailable';
+    if (kind === 'ok') draft.clear();
+    onDone(kind);
+  }
+
+  App.draft = draft;
+
   App.submit = {
     checkStep: checkStep,
     checkAll: checkAll,
     buildData: buildData,
     pendingZones: pendingZones,
-    resolveTmp: resolveTmp
+    resolveTmp: resolveTmp,
+    classify: classify,
+    token: token,
+    send: send
   };
 })();

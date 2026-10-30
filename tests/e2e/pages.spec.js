@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-const PAGES = ['/', '/survey.html?role=staff', '/survey.html?role=donor', '/admin.html'];
+const PAGES = ['/', '/survey.html?role=staff', '/survey.html?role=donor', '/thanks.html', '/admin.html'];
 
 test('donor survey does not load staff-only scripts', async ({ page }) => {
   const urls = [];

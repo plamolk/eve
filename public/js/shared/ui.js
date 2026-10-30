@@ -71,8 +71,8 @@ window.App = window.App || {};
       return '<p class="mb-4 rounded-r-md border-l-[3px] border-blood bg-cream px-3 py-2 text-[13.5px] leading-relaxed">' + esc(text) + '</p>';
     },
 
-    primaryButton: function (label, data) {
-      return '<button type="button" class="rounded-lg bg-blood px-5 py-3 text-[15px] font-semibold text-white transition-colors hover:bg-blood-dark" ' + attrs(data) + '>' + esc(label) + '</button>';
+    primaryButton: function (label, data, disabled) {
+      return '<button type="button" class="rounded-lg bg-blood px-5 py-3 text-[15px] font-semibold text-white transition-colors hover:bg-blood-dark' + (disabled ? ' cursor-wait opacity-60' : '') + '" ' + attrs(data) + (disabled ? ' disabled' : '') + '>' + esc(label) + '</button>';
     },
 
     secondaryButton: function (label, data) {

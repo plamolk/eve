@@ -5,17 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>แบบสอบถามรถรับบริจาคโลหิตเคลื่อนที่</title>
   <link rel="stylesheet" href="css/app.css">
+  <script defer src="js/config.js"></script>
   <script defer src="js/shared/ui.js"></script>
   <script defer src="js/data/common.js"></script>
   <script defer src="js/data/bus-layout.js"></script>
   <script defer src="js/components/bus-map.js"></script>
   <script defer src="js/survey/state.js"></script>
   <script defer src="js/survey/submit.js"></script>
-  <script defer src="js/pages/thanks.js"></script>
   <script defer src="js/survey/survey.js"></script>
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
 </head>
 <body class="min-h-screen bg-cream font-sans text-ink antialiased">
   <main id="app" class="mx-auto max-w-3xl px-4 pb-16 pt-6"></main>
+  <!-- Turnstile widget (แสดงเฉพาะเมื่อต้องให้ผู้ตอบยืนยัน) -->
+  <div id="ts" class="mx-auto flex max-w-3xl justify-center px-4"></div>
+  <!-- honeypot: คนมองไม่เห็น บอตมักกรอก -->
+  <div class="absolute -left-[9999px]" aria-hidden="true"><input id="hp" name="website" tabindex="-1" autocomplete="off"></div>
 
   <div id="toast" class="pointer-events-none fixed inset-x-0 bottom-6 flex justify-center opacity-0 transition-opacity duration-200" role="status" aria-live="polite">
     <span class="rounded-full bg-ink px-4 py-2 text-sm text-white shadow"></span>

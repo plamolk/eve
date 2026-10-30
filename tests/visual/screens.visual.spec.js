@@ -1,6 +1,6 @@
 // Screens must look the same before and after the restructure.
 // Navigation only clicks visible text, so it works on the old SPA and the new pages.
-// thanks-pilot and summary-mock are removed in Tasks 7–8.
+// summary-mock is removed in Task 8.
 import { test, expect } from '@playwright/test';
 
 const STAFF = ['A', 'B', 'C', 'D', 'E', 'F'];
@@ -52,14 +52,6 @@ for (const [label, prefix, parts] of [['เจ้าหน้าที่', 'sta
     }
   });
 }
-
-test('thanks-pilot', async ({ page }) => {
-  await start(page, 'เจ้าหน้าที่');
-  for (let i = 0; i < STAFF.length - 1; i++) await next(page);
-  await fillSection(page);
-  await page.getByText('ส่งคำตอบ', { exact: true }).click();
-  await step(page, 'thanks-pilot');
-});
 
 test('summary-mock', async ({ page }) => {
   await page.goto('/');

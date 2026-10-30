@@ -173,3 +173,59 @@ test('buildData equals legacy toJSON', () => {
   const s = fullState('staff');
   expect(App.submit.buildData(s)).toEqual(JSON.parse(App.store.toJSON()));
 });
+
+describe('classify', () => {
+  test.each([
+    [{ status: 201, json: { ok: true } }, 'ok'],
+    [{ status: 202, json: { ok: true, queued: true } }, 'ok'],
+    [{ status: 403, json: { error: 'turnstile' } }, 'turnstile'],
+    [{ status: 429, json: { error: 'rate' } }, 'rate'],
+    [{ status: 400, json: { error: 'invalid', field: 'answers.yrs' } }, 'invalid'],
+    [{ status: 413, json: { error: 'too_large' } }, 'invalid'],
+    [{ status: 429, json: null }, 'down'],
+    [{ status: 502, json: null }, 'down'],
+    [{ status: 503, json: { error: 'unavailable' } }, 'down'],
+    [{ status: 201, json: null }, 'down']
+  ])('%j → %s', (res, want) => {
+    expect(App.submit.classify(res)).toBe(want);
+  });
+});
+
+describe('draft', () => {
+  test('save, load and clear round-trip', () => {
+    const store = {};
+    const ls = { getItem: (k) => store[k] ?? null, setItem: (k, v) => { store[k] = String(v); }, removeItem: (k) => { delete store[k]; } };
+    const A = loadBrowser(FILES, { localStorage: ls });
+    const d = { v: 1, cid: 'c', role: 'donor', step: 2, answers: { age: '18-25' }, msd: {}, map: {} };
+    A.draft.save(d);
+    expect(A.draft.load()).toEqual(d);
+    A.draft.clear();
+    expect(A.draft.load()).toBeNull();
+  });
+
+  test('storage that throws is ignored', () => {
+    const boom = () => { throw new Error('denied'); };
+    const A = loadBrowser(FILES, { localStorage: { getItem: boom, setItem: boom, removeItem: boom } });
+    expect(() => A.draft.save({ v: 1 })).not.toThrow();
+    expect(A.draft.load()).toBeNull();
+    expect(() => A.draft.clear()).not.toThrow();
+  });
+
+  test('missing localStorage is ignored', () => {
+    expect(App.draft.load()).toBeNull();
+  });
+});
+
+test('reset gives every survey a fresh uuid v4 cid', () => {
+  App.store.reset();
+  const a = App.state.cid;
+  App.store.reset();
+  expect(a).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+  expect(App.state.cid).not.toBe(a);
+});
+
+test('restore puts a draft back into the state', () => {
+  App.store.restore({ v: 1, cid: 'abc', role: 'donor', step: 3, answers: { age: '18-25' }, msd: {}, map: { Z5: { t: ['คับแคบ'], sev: 2, n: '' } } });
+  expect(App.state).toMatchObject({ cid: 'abc', role: 'donor', step: 3, answers: { age: '18-25' } });
+  expect(App.state.map.Z5.sev).toBe(2);
+});
