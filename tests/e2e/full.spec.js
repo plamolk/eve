@@ -68,6 +68,20 @@ test('admin page shows the real counts', async ({ page }) => {
   await expect(page.getByText('ซ่อนสาย')).toBeVisible();
 });
 
+test('dashboard tabs show real data', async ({ page }) => {
+  await page.goto('/admin.html');
+  await page.getByLabel('รหัสผ่าน').fill(DEV.ADMIN_PASSWORD);
+  await page.getByText('เข้าสู่ระบบ', { exact: true }).click();
+  await expect(page.getByText('คำตอบทั้งหมด')).toBeVisible();
+  await expect(page.locator('[data-stat="total"] [data-value]')).toHaveText('2');
+  await page.getByRole('button', { name: 'ความคิดเห็น', exact: true }).click();
+  await page.locator('[data-action="ckey"][data-key="other"]').click();
+  await expect(page.getByText(STAFF.answers.other, { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'ดูคำตอบทั้งหมดของคนนี้' }).first().click();
+  await expect(page.getByText('ตำแหน่งงาน')).toBeVisible();
+  await expect(page.getByText('พยาบาล', { exact: true })).toBeVisible();
+});
+
 test('measure rows per submit, per admin open, and payload sizes', async ({ request }) => {
   const u0 = usageNow();
   expect((await submit(request, fixture('staff-full'))).status()).toBe(201);

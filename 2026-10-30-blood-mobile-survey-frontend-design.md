@@ -16,7 +16,7 @@ Backend, quota handling and admin page: see `docs/superpowers/specs/2026-10-30-b
 1. `index.html`: intro text + role links to `survey.html?role=staff|donor` (no JavaScript).
 2. `survey.html`: sections A–F in one page with a progress bar (progress = section index / number of sections). Loads only the question file of its role. Missing answers get a red frame and "กรุณาตอบข้อนี้". Part C has "ไม่มีอาการปวดเมื่อย", part D has "ไม่พบปัญหา". Unsaved map points are flagged when leaving part D. "ส่งคำตอบ" posts to `/api/submit`, falls back to Google Sheets, and keeps a draft in the browser only while sending fails.
 3. `thanks.html`: thank-you text + "เริ่มใหม่" (no JavaScript).
-4. `admin.html`: password login, real summary from the API (bus-map heatmap, body-map counts, ranking bars), quota card, CSV download, "ยังไม่มีข้อมูล" when empty.
+4. `admin.html`: password login, then 4 tabs (spec: `docs/superpowers/specs/2026-10-31-admin-dashboard-design.md`): ภาพรวม (6 stat tiles, daily stacked chart, bus-map heatmap, body-map counts, ranking bars, quota card), คำถามทั้งหมด (every question summarised per role), ความคิดเห็น (all long-text answers and map notes, search, load more), รายคน (newest-first list and full answers per person). CSV download; "ยังไม่มีข้อมูล" when empty.
 
 ## Output JSON
 `{"role":"staff","answers":{...},"msd":{<region>:{"y","w","s"}},"map":{<zoneId>:{"t":[],"p":[],"sev":3,"n":""}}}`
@@ -28,7 +28,7 @@ Sent as `{"v":1,"cid":"<uuid>","token":"<turnstile>","hp":"","data":<JSON above>
 - `public/js/shared/ui.js` HTML-string UI helpers
 - `public/js/components/bus-map.js`, `body-map.js` (input + summary modes)
 - `public/js/survey/state.js` answers + JSON, `submit.js` checks / sending / draft, `survey.js` render + event delegation + role loader
-- `public/js/admin/admin.js` admin page, `boot.js` starts it
+- `public/js/admin/admin.js` admin shell (texts, login, tabs, state, CSV), `stats.js` number helpers, `api.js` API client, `overview.js` / `questions.js` / `comments.js` / `people.js` one view per tab, `boot.js` starts it
 - `public/js/config.js` Turnstile sitekey and Apps Script URL
 
 ## Known uncertainties (clip is 830×540; verify against the real source)
