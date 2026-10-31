@@ -97,14 +97,20 @@ adminRoutes.get('/responses', async (c) => {
   const role = c.req.query('role');
   const after = c.req.query('after') === undefined ? 0 : Number(c.req.query('after'));
   const limit = c.req.query('limit') === undefined ? PAGE_MAX : Number(c.req.query('limit'));
+  const hasBefore = c.req.query('before') !== undefined;
+  const before = hasBefore ? posInt(c.req.query('before'), 0) : 0;
   if (role !== undefined && role !== 'staff' && role !== 'donor') return c.json({ error: 'invalid', field: 'role' }, 400);
   if (!Number.isInteger(after) || after < 0) return c.json({ error: 'invalid', field: 'after' }, 400);
   if (!Number.isInteger(limit) || limit < 1 || limit > PAGE_MAX) return c.json({ error: 'invalid', field: 'limit' }, 400);
+  if (hasBefore && (Number.isNaN(before) || c.req.query('after') !== undefined)) return c.json({ error: 'invalid', field: 'before' }, 400);
 
   const db = c.env.DB;
   const m = createMeter();
-  const sql = 'SELECT id, cid, role, created, src, data FROM responses WHERE id > ?' + (role ? ' AND role = ?' : '') + ' ORDER BY id LIMIT ?';
-  const stmt = role ? db.prepare(sql).bind(after, role, limit) : db.prepare(sql).bind(after, limit);
+  // before → ใหม่สุดก่อน (หน้ารายคน), after → เก่าสุดก่อน (CSV)
+  const sql = 'SELECT id, cid, role, created, src, data FROM responses WHERE ' + (hasBefore ? 'id < ?' : 'id > ?') +
+    (role ? ' AND role = ?' : '') + (hasBefore ? ' ORDER BY id DESC' : ' ORDER BY id') + ' LIMIT ?';
+  const cursor = hasBefore ? before : after;
+  const stmt = role ? db.prepare(sql).bind(cursor, role, limit) : db.prepare(sql).bind(cursor, limit);
   const rows = (await m.run(stmt)).results.map((r) => ({ ...r, data: JSON.parse(r.data) }));
   await bumpUsage(db, m, 0);
   return c.json({ rows, next: rows.length === limit ? rows[rows.length - 1].id : null });
@@ -167,4 +173,15 @@ adminRoutes.get('/comments', async (c) => {
   }
   await bumpUsage(db, m, 0);
   return c.json({ items: items.map((i) => (key === 'map' ? i : { id: i.id, role: i.role, created: i.created, text: i.text })), next });
+});
+
+adminRoutes.get('/responses/:id', async (c) => {
+  const id = posInt(c.req.param('id'), NaN);
+  if (Number.isNaN(id)) return c.json({ error: 'invalid', field: 'id' }, 400);
+  const db = c.env.DB;
+  const m = createMeter();
+  const row = (await m.run(db.prepare('SELECT id, cid, role, created, src, data FROM responses WHERE id = ?').bind(id))).results[0];
+  await bumpUsage(db, m, 0);
+  if (!row) return c.json({ error: 'not_found' }, 404);
+  return c.json({ row: { ...row, data: JSON.parse(row.data) } });
 });

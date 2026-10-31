@@ -97,3 +97,39 @@ test('summary includes v2 fields', async () => {
   expect(s.staff.days).toEqual([['2026-10-31', 1]]);
   expect(s.staff.q).toEqual({ pos: { 'พยาบาล': 1 } });
 });
+
+test('responses with before page newest first', async () => {
+  await seed(7);
+  const p1 = await (await get('/api/admin/responses?before=8&limit=3')).json();
+  expect(p1.rows.map((r) => r.id)).toEqual([7, 6, 5]);
+  expect(p1.next).toBe(5);
+  const d = await (await get('/api/admin/responses?before=5&limit=3&role=donor')).json();
+  expect(d.rows.map((r) => r.id)).toEqual([3]);
+  expect(d.next).toBeNull();
+});
+
+test('responses rejects after together with before, and a bad before', async () => {
+  await seed(3);
+  const both = await get('/api/admin/responses?after=1&before=5');
+  expect(both.status).toBe(400);
+  expect(await both.json()).toEqual({ error: 'invalid', field: 'before' });
+  expect((await get('/api/admin/responses?before=0')).status).toBe(400);
+  expect((await get('/api/admin/responses?before=x')).status).toBe(400);
+});
+
+test('one response by id', async () => {
+  await seed(3);
+  const ok = await get('/api/admin/responses/3');
+  expect(ok.status).toBe(200);
+  const { row } = await ok.json();
+  expect(row.id).toBe(3);
+  expect(row.role).toBe('donor');
+  expect(typeof row.data).toBe('object');
+  expect(Object.keys(row).sort()).toEqual(['cid', 'created', 'data', 'id', 'role', 'src']);
+  const missing = await get('/api/admin/responses/999');
+  expect(missing.status).toBe(404);
+  expect(await missing.json()).toEqual({ error: 'not_found' });
+  expect((await get('/api/admin/responses/abc')).status).toBe(400);
+  expect((await get('/api/admin/responses/0')).status).toBe(400);
+  expect((await get('/api/admin/responses/3', null)).status).toBe(401);
+});
