@@ -68,13 +68,14 @@ adminRoutes.get('/summary', async (c) => {
     db.prepare('SELECT rw, rr, n FROM usage WHERE day = ?').bind(day)
   ]);
   const stored = sumRes.results[0];
-  const rebuild = c.req.query('rebuild') === '1';
   const parsed = JSON.parse(stored.data);
-  let acc = rebuild || !parsed.staff ? emptyAcc() : parsed;
+  // rebuild=1 หรือ cache รุ่นเก่า (ไม่มี v:2) → เริ่มนับใหม่จากแถวแรก
+  const rebuild = c.req.query('rebuild') === '1' || parsed.v !== 2;
+  let acc = rebuild ? emptyAcc() : parsed;
   const from = rebuild ? 0 : stored.last_id;
   let updated = stored.updated;
 
-  const rows = (await m.run(db.prepare('SELECT id, role, data FROM responses WHERE id > ? ORDER BY id LIMIT ?').bind(from, SUMMARY_BATCH))).results;
+  const rows = (await m.run(db.prepare('SELECT id, role, data, created, src FROM responses WHERE id > ? ORDER BY id LIMIT ?').bind(from, SUMMARY_BATCH))).results;
   if (rows.length || rebuild) {
     acc = mergeRows(acc, rows);
     updated = Math.floor(Date.now() / 1000);

@@ -80,3 +80,20 @@ test('responses rejects a bad role or limit', async () => {
   expect((await get('/api/admin/responses?role=x')).status).toBe(400);
   expect((await get('/api/admin/responses?limit=500')).status).toBe(400);
 });
+
+test('old cache without v:2 is rebuilt from zero', async () => {
+  await seed(3);
+  await env.DB.exec("UPDATE summary SET last_id = 3, data = '{\"staff\":{\"n\":99,\"heat\":{},\"body\":{},\"rank\":{}},\"donor\":{\"n\":0,\"heat\":{}}}'");
+  const s = await (await get('/api/admin/summary')).json();
+  expect(s.staff.n + s.donor.n).toBe(3);
+});
+
+test('summary includes v2 fields', async () => {
+  const data = { role: 'staff', answers: { pos: 'พยาบาล' }, msd: {}, map: {} };
+  await env.DB.prepare('INSERT INTO responses (id, cid, role, data, created, src) VALUES (1, ?, ?, ?, ?, 1)')
+    .bind('cid-v2', 'staff', JSON.stringify(data), Date.parse('2026-10-31T03:00:00Z') / 1000).run();
+  const s = await (await get('/api/admin/summary')).json();
+  expect(s.staff.src1).toBe(1);
+  expect(s.staff.days).toEqual([['2026-10-31', 1]]);
+  expect(s.staff.q).toEqual({ pos: { 'พยาบาล': 1 } });
+});
