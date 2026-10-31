@@ -6,7 +6,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "predev": "node scripts/ensure-dev-vars.mjs",
+    "predev": "node scripts/ensure-dev-vars.mjs && wrangler d1 migrations apply eve-survey --local",
     "dev": "wrangler dev",
     "build:css": "tailwindcss -c tailwind.config.js -i src/styles.css -o public/css/app.css --minify",
     "test": "npm run test:unit && npm run test:worker",
