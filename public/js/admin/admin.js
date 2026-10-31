@@ -66,8 +66,18 @@ App.data.admin = {
   colSevAvg: 'ความรุนแรงเฉลี่ย',
   colTypes: 'ประเภทปัญหา 3 อันดับแรก',
   colParts: 'ส่วนของเก้าอี้ 3 อันดับแรก',
-  blank: '—',
-  wip: 'กำลังพัฒนา'
+  colId: 'ลำดับ',
+  colTime: 'เวลา',
+  colRole: 'บทบาท',
+  colSrc: 'ช่องทาง',
+  colType: 'ประเภท',
+  colPart: 'ส่วนของเก้าอี้',
+  colSevOne: 'ความรุนแรง',
+  colNote: 'หมายเหตุ',
+  notFound: 'ไม่พบคำตอบนี้',
+  noPain: 'ไม่มีอาการปวดเมื่อย',
+  noProblem: 'ไม่พบปัญหา',
+  blank: '—'
 };
 
 (function () {
@@ -126,7 +136,7 @@ App.data.admin = {
     heatTab: 'staff',
     qRole: 'staff',
     comments: { key: null, q: '', items: [], next: null, loading: false, error: false, loaded: false, ticket: 0 },
-    people: { role: '', rows: null, next: null, stack: [], detail: undefined }
+    people: { role: '', rows: null, next: null, stack: [], cur: undefined, detail: undefined, loading: false, error: false, loaded: false, ticket: 0 }
   };
 
   function loginView(message) {
@@ -159,15 +169,14 @@ App.data.admin = {
       '</div>';
   }
 
-  function placeholder(key) {
-    return '<h2 class="mb-3 text-[17px] font-bold">' + ui.esc(t.tabs[key]) + '</h2><p class="text-[13px] text-muted">' + ui.esc(t.wip) + '</p>';
-  }
-
   function tabView() {
     if (state.tab === 'overview') return V.overview(state.summary, state.heatTab);
     if (state.tab === 'questions') return V.questions(state.summary, state.qRole);
     if (state.tab === 'comments') return V.comments(state.comments, state.summary);
-    return placeholder(state.tab);
+    const p = state.people;
+    if (p.detail === 'loading') return '';
+    if (p.detail !== undefined) return V.person(p.detail);
+    return V.peopleList(p);
   }
 
   function render() {
@@ -248,6 +257,54 @@ App.data.admin = {
     loadComments(false);
   }
 
+  // ---------- รายคน ----------
+  async function loadPeople(before) {
+    const p = state.people;
+    const ticket = ++p.ticket;
+    p.loading = true;
+    p.error = false;
+    try {
+      const page = await api.responses({ before: before, role: p.role, limit: PAGE });
+      if (ticket !== p.ticket) return;
+      p.rows = page.rows;
+      p.next = page.next;
+      p.cur = before;
+      p.loaded = true;
+    } catch (e) {
+      if (ticket !== p.ticket) return;
+      if (e.auth) { p.loading = false; failed(e); return; }
+      p.error = true;
+    }
+    p.loading = false;
+    if (state.tab === 'people') render();
+  }
+
+  function listPeople() {
+    const p = state.people;
+    state.tab = 'people';
+    p.detail = undefined;
+    render();
+    if (!p.loaded) loadPeople(undefined);
+  }
+
+  async function openPerson(id) {
+    const p = state.people;
+    const ticket = ++p.ticket;
+    state.tab = 'people';
+    p.detail = 'loading';
+    render();
+    try {
+      const res = await api.response(id);
+      if (ticket !== p.ticket) return;
+      p.detail = res.row;
+    } catch (e) {
+      if (ticket !== p.ticket) return;
+      if (e.auth) { failed(e); return; }
+      p.detail = null; // 404 หรือโหลดไม่สำเร็จ → "ไม่พบคำตอบนี้"
+    }
+    if (state.tab === 'people') render();
+  }
+
   async function login(password) {
     const r = await fetch('/api/admin/login', {
       method: 'POST', credentials: 'same-origin',
@@ -262,6 +319,7 @@ App.data.admin = {
     const a = el.dataset.action;
     if (a === 'tab') {
       if (el.dataset.value === 'comments' && !state.comments.loaded) return openComments();
+      if (el.dataset.value === 'people') return listPeople();
       state.tab = el.dataset.value;
       render();
     }
@@ -270,6 +328,11 @@ App.data.admin = {
     if (a === 'gocomments' || a === 'ckey') openComments(el.dataset.key);
     if (a === 'cclear') { state.comments.q = ''; loadComments(false); }
     if (a === 'cmore' && !state.comments.loading) loadComments(true);
+    if (a === 'person') openPerson(el.dataset.id);
+    if (a === 'peopleback') listPeople();
+    if (a === 'prole') { state.people.role = el.dataset.value; state.people.stack = []; loadPeople(undefined); }
+    if (a === 'polder' && state.people.next !== null && !state.people.loading) { state.people.stack.push(state.people.cur); loadPeople(state.people.next); }
+    if (a === 'pnewer' && state.people.stack.length && !state.people.loading) loadPeople(state.people.stack.pop());
     if (a === 'refresh') refresh();
     if (a === 'csv') downloadCSV();
     if (a === 'logout') api.call('POST', '/api/admin/logout').catch(function () {}).then(function () { state.summary = null; show(loginView()); });

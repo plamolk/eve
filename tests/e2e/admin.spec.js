@@ -105,6 +105,7 @@ test('logout returns to the login form', async ({ page }) => {
 test('tabs switch between the four views', async ({ page }) => {
   await mockAdmin(page);
   await mockComments(page);
+  await mockPeople(page);
   await page.goto('/admin.html');
   await login(page);
   await expect(page.getByText('จำนวนคำตอบรายวัน')).toBeVisible();
@@ -206,4 +207,75 @@ test('401 when opening the comments tab returns to login', async ({ page }) => {
   await login(page);
   await page.getByRole('button', { name: 'ความคิดเห็น', exact: true }).click();
   await expect(page.getByLabel('รหัสผ่าน')).toBeVisible();
+});
+
+const STAFF_ROW = { id: 3, cid: 'c3', role: 'staff', created: 1793383200, src: 0, data: { role: 'staff', answers: { pos: 'พยาบาล', yrs: '5', rank: ['ซ่อนสาย', 'ทางเดินกว้างขึ้น', 'ทำความสะอาดง่าย'], other: 'ไม่มี', noMsd: true, noMap: true }, msd: {}, map: {} } };
+const P_PAGES = {
+  first: { rows: [STAFF_ROW, { ...STAFF_ROW, id: 2, src: 1 }], next: 2 },
+  second: { rows: [{ ...STAFF_ROW, id: 1 }], next: null }
+};
+
+async function mockPeople(page, { missing = [] } = {}) {
+  const urls = [];
+  await page.route('**/api/admin/responses?*', (r) => {
+    const u = new URL(r.request().url());
+    urls.push(u.search);
+    return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(u.searchParams.get('before') === '2' ? P_PAGES.second : P_PAGES.first) });
+  });
+  await page.route('**/api/admin/responses/*', (r) => {
+    const id = Number(new URL(r.request().url()).pathname.split('/').pop());
+    return missing.includes(id)
+      ? r.fulfill({ status: 404, contentType: 'application/json', body: '{"error":"not_found"}' })
+      : r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ row: { ...STAFF_ROW, id } }) });
+  });
+  return urls;
+}
+
+test('people: list, page, open detail, go back', async ({ page }) => {
+  await mockAdmin(page);
+  const urls = await mockPeople(page);
+  await page.goto('/admin.html');
+  await login(page);
+  await page.getByRole('button', { name: 'รายคน', exact: true }).click();
+  await expect(page.getByText('ทางสำรอง', { exact: true })).toBeVisible();
+  expect(urls.at(-1)).toContain('limit=50');
+  await page.getByRole('button', { name: 'เก่ากว่า', exact: true }).click();
+  await expect(page.locator('[data-action="person"][data-id="1"]').first()).toBeVisible();
+  expect(urls.at(-1)).toContain('before=2');
+  await page.getByRole('button', { name: 'ใหม่กว่า', exact: true }).click();
+  await expect(page.locator('[data-action="person"][data-id="3"]').first()).toBeVisible();
+  expect(urls.at(-1)).not.toContain('before=');
+  await page.getByRole('button', { name: 'ผู้บริจาค', exact: true }).click();
+  expect(urls.at(-1)).toContain('role=donor');
+  await page.getByRole('button', { name: 'ทั้งหมด', exact: true }).click();
+  await page.locator('button[data-action="person"][data-id="3"]').click();
+  await expect(page.getByText('ตำแหน่งงาน')).toBeVisible();
+  await expect(page.getByText('พยาบาล', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'กลับไปรายการ', exact: true }).click();
+  await expect(page.locator('button[data-action="person"][data-id="3"]')).toBeVisible();
+});
+
+test('comment link opens that person', async ({ page }) => {
+  await mockAdmin(page);
+  await mockComments(page);
+  await mockPeople(page);
+  await page.goto('/admin.html');
+  await login(page);
+  await page.getByRole('button', { name: 'ความคิดเห็น', exact: true }).click();
+  await page.getByRole('button', { name: 'ดูคำตอบทั้งหมดของคนนี้' }).first().click();
+  await expect(page.getByRole('button', { name: 'รายคน', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByText('ตำแหน่งงาน')).toBeVisible();
+});
+
+test('missing person shows not found', async ({ page }) => {
+  await mockAdmin(page);
+  await mockComments(page);
+  await mockPeople(page, { missing: [9] });
+  await page.goto('/admin.html');
+  await login(page);
+  await page.getByRole('button', { name: 'ความคิดเห็น', exact: true }).click();
+  await page.getByRole('button', { name: 'ดูคำตอบทั้งหมดของคนนี้' }).first().click();
+  await expect(page.getByText('ไม่พบคำตอบนี้')).toBeVisible();
+  await page.getByRole('button', { name: 'กลับไปรายการ', exact: true }).click();
+  await expect(page.locator('button[data-action="person"][data-id="3"]')).toBeVisible();
 });

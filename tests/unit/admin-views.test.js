@@ -243,3 +243,72 @@ describe('comments tab', () => {
     expect(html).toMatch(/data-action="ckey" data-key="map"[^]*?data-count[^>]*>3</);
   });
 });
+
+import { readFileSync } from 'node:fs';
+const STAFF_FULL = JSON.parse(readFileSync(new URL('../fixtures/staff-full.json', import.meta.url), 'utf8'));
+const DONOR_FULL = JSON.parse(readFileSync(new URL('../fixtures/donor-full.json', import.meta.url), 'utf8'));
+const rowOf = (data, extra = {}) => ({ id: 3, cid: 'c3', role: data.role, created: Date.parse('2026-10-30T17:30:00Z') / 1000, src: 0, data, ...extra });
+
+describe('people tab', () => {
+  const P = () => loadViews(['public/js/admin/comments.js', 'public/js/admin/people.js']);
+
+  test('person shows every section and answer in Thai', () => {
+    const App = P();
+    const html = App.adminViews.person(rowOf(STAFF_FULL));
+    expect(html).toContain('ตำแหน่งงาน');
+    expect(html).toContain('ส่วน A ข้อมูลทั่วไป');
+    expect(html).toContain('<ol');
+    expect(html).toContain(App.data.findArea('A3').label);
+    expect(html).toContain('2026-10-31 00:30');
+    expect(html).toContain('data-action="peopleback"');
+    expect(html).toContain('ใช่');
+  });
+
+  test('scale answers use the option label and multi answers are a list', () => {
+    const data = { ...DONOR_FULL, answers: { ...DONOR_FULL.answers, seat: 5 } };
+    const html = P().adminViews.person(rowOf(data));
+    expect(html).toContain('5 เห็นด้วยอย่างยิ่ง');
+    expect(html).toMatch(/<ul[^>]*>[^]*?<li[^>]*>แสง<\/li>/);
+  });
+
+  test('an unanswered optional question shows a dash', () => {
+    const answers = { ...STAFF_FULL.answers };
+    delete answers.ht;
+    const html = P().adminViews.person(rowOf({ ...STAFF_FULL, answers }));
+    expect(html).toMatch(/ช่วงส่วนสูง[^]*?<dd[^>]*>—<\/dd>/);
+  });
+
+  test('no pain and no map problems show their own lines', () => {
+    const html = P().adminViews.person(rowOf({ ...STAFF_FULL, answers: { ...STAFF_FULL.answers, noMsd: true, noMap: true }, msd: {}, map: {} }));
+    expect(html).toContain('ไม่มีอาการปวดเมื่อย');
+    expect(html).toContain('ไม่พบปัญหา');
+  });
+
+  test('answer text with HTML is escaped', () => {
+    const html = P().adminViews.person(rowOf({ ...STAFF_FULL, answers: { ...STAFF_FULL.answers, other: '<img src=x onerror=alert(1)>' }, map: { A3: { t: ['คับแคบ'], p: [], sev: 2, n: '<b>x</b>' } } }));
+    expect(html).not.toContain('<img');
+    expect(html).toContain('&lt;img');
+    expect(html).not.toContain('<b>x');
+  });
+
+  test('person(null) says the answer was not found and offers a way back', () => {
+    const html = P().adminViews.person(null);
+    expect(html).toContain('ไม่พบคำตอบนี้');
+    expect(html).toContain('data-action="peopleback"');
+  });
+
+  test('people list shows id, Bangkok time, role and channel per row', () => {
+    const html = P().adminViews.peopleList({ role: '', rows: [rowOf(STAFF_FULL, { id: 7, src: 1 }), rowOf(DONOR_FULL, { id: 6 })], next: 6, stack: [] });
+    expect(html).toContain('data-action="person" data-id="7"');
+    expect(html).toContain('ทางสำรอง');
+    expect(html).toContain('ตรง');
+    expect(html).toContain('2026-10-31 00:30');
+    expect(html).toContain('data-action="prole" data-value="donor"');
+    expect(html).toMatch(/data-action="polder"(?![^>]*disabled)/);
+    expect(html).toMatch(/data-action="pnewer"[^>]*disabled/);
+  });
+
+  test('an empty people list shows the empty state', () => {
+    expect(P().adminViews.peopleList({ role: 'donor', rows: [], next: null, stack: [] })).toContain('ยังไม่มีข้อมูล');
+  });
+});
