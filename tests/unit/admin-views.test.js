@@ -95,3 +95,98 @@ describe('adminApi', () => {
     ]);
   });
 });
+
+// ---------- มุมมองของแท็บ (โหลดไฟล์หน้าแอดมินครบชุด) ----------
+import { emptyAcc, present } from '../../src/summary.js';
+
+const VIEW_FILES = [
+  'public/js/shared/ui.js', 'public/js/data/common.js', 'public/js/data/staff.js', 'public/js/data/donor.js',
+  'public/js/data/bus-layout.js', 'public/js/data/body-regions.js',
+  'public/js/components/bus-map.js', 'public/js/components/body-map.js',
+  'public/js/admin/stats.js', 'public/js/admin/api.js', 'public/js/admin/overview.js', 'public/js/admin/questions.js',
+  'public/js/admin/admin.js'
+];
+const loadViews = (extra = []) => loadBrowser(VIEW_FILES.concat(extra));
+const base = () => ({ updated: 0, more: false, usage: { day: 1, rw: 0, rr: 0, n: 0, limits: { rw: 100000, rr: 5000000 } }, ...present(emptyAcc()) });
+
+function fixture() {
+  const s = base();
+  Object.assign(s.staff, {
+    n: 2,
+    q: { pos: { 'พยาบาล': 2 }, ht: { '155-165': 1 } },
+    num: { yrs: { '5': 1, '7': 1 } },
+    text: { other: 2 },
+    rank: [['ซ่อนสาย', 5], ['ทางเดินกว้างขึ้น', 5], ['ทำความสะอาดง่าย', 2]],
+    rank1: { 'ซ่อนสาย': 1, 'ทางเดินกว้างขึ้น': 1 },
+    msd: { 'คอ': { n: 1, y: 1, w: 0, avg: 4, dist: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0] } },
+    noMsd: 1,
+    heat: { A3: { count: 1, avg: 4 } },
+    zones: { A3: { t: [['คับแคบ', 1], ['เอื้อมยาก', 1]], p: [['พนักพิง', 1]] } },
+    noMap: 0
+  });
+  Object.assign(s.donor, { n: 2, q: { seat: { '4': 1, '2': 1 }, uneasy: { 'แสง': 2, 'สี': 1 } } });
+  return s;
+}
+const optRow = (label, value) => new RegExp(label + '</span><span[^>]*></span><span[^>]*>' + value.replace(/[()]/g, '\\$&') + '<');
+
+describe('questions tab', () => {
+  test('pills list every option, zero ones included, with % of people who answered', () => {
+    const html = loadViews().adminViews.questions(fixture(), 'staff');
+    expect(html).toMatch(optRow('พยาบาล', '2 (100%)'));
+    expect(html).toMatch(optRow('อื่น ๆ', '0 (0%)'));
+    expect(html).toContain('ตอบ 1 จาก 2 คน');
+    expect(html).toContain('ตำแหน่งงาน');
+    expect(html).toContain('ส่วน A ข้อมูลทั่วไป');
+  });
+
+  test('scale shows the option labels and the mean', () => {
+    const html = loadViews().adminViews.questions(fixture(), 'donor');
+    expect(html).toContain('ค่าเฉลี่ย 3');
+    expect(html).toContain('5 เห็นด้วยอย่างยิ่ง');
+  });
+
+  test('multi counts against everyone in the role and says the total can pass 100%', () => {
+    const html = loadViews().adminViews.questions(fixture(), 'donor');
+    expect(html).toMatch(optRow('แสง', '2 (100%)'));
+    expect(html).toMatch(optRow('สี', '1 (50%)'));
+    expect(html).toContain('เลือกได้หลายข้อ ผลรวมเกิน 100% ได้');
+  });
+
+  test('number shows mean, median, min and max', () => {
+    const html = loadViews().adminViews.questions(fixture(), 'staff');
+    for (const s of ['ค่าเฉลี่ย 6', 'มัธยฐาน 6', 'ต่ำสุด 5', 'สูงสุด 7']) expect(html).toContain(s);
+  });
+
+  test('rank shows total points, sorted, with a first-place column', () => {
+    const html = loadViews().adminViews.questions(fixture(), 'staff');
+    expect(html).toContain('อันดับ 1 (คน)');
+    expect(html.indexOf('ทำความสะอาดง่าย')).toBeGreaterThan(html.indexOf('ซ่อนสาย'));
+  });
+
+  test('long text shows the count and a link to the comments tab', () => {
+    const html = loadViews().adminViews.questions(fixture(), 'staff');
+    expect(html).toContain('2 ความคิดเห็น');
+    expect(html).toContain('data-action="gocomments" data-key="other"');
+  });
+
+  test('body map section is a table per region with the no-pain count', () => {
+    const html = loadViews().adminViews.questions(fixture(), 'staff');
+    expect(html).toMatch(/<th scope="row"[^>]*>คอ<\/th><td[^>]*>1<\/td><td[^>]*>1<\/td><td[^>]*>0<\/td><td[^>]*>4<\/td>/);
+    expect(html).toContain('ไม่มีอาการ 1 คน');
+    expect(html).toContain('scope="col"');
+  });
+
+  test('bus map section lists each point with its top problem types', () => {
+    const html = loadViews().adminViews.questions(fixture(), 'staff');
+    expect(html).toContain('คับแคบ (1)');
+    expect(html).toContain('พนักพิง (1)');
+    expect(html).toContain('ไม่พบปัญหา 0 คน');
+  });
+
+  test('a role with no answers shows the empty state once and never NaN', () => {
+    const html = loadViews().adminViews.questions(base(), 'donor');
+    expect(html.match(/ยังไม่มีข้อมูล/g)).toHaveLength(1);
+    expect(html).not.toMatch(/NaN|Infinity/);
+    expect(html).toContain('data-action="qrole" data-value="staff"');
+  });
+});

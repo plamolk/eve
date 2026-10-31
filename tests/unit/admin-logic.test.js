@@ -6,7 +6,7 @@ export const ADMIN_FILES = [
   'public/js/shared/ui.js', 'public/js/data/common.js', 'public/js/data/staff.js', 'public/js/data/donor.js',
   'public/js/data/bus-layout.js', 'public/js/data/body-regions.js',
   'public/js/components/bus-map.js', 'public/js/components/body-map.js',
-  'public/js/admin/stats.js', 'public/js/admin/api.js', 'public/js/admin/overview.js', 'public/js/admin/admin.js'
+  'public/js/admin/stats.js', 'public/js/admin/api.js', 'public/js/admin/overview.js', 'public/js/admin/questions.js', 'public/js/admin/admin.js'
 ];
 
 let App;

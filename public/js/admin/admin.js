@@ -55,6 +55,17 @@ App.data.admin = {
   older: 'เก่ากว่า',
   back: 'กลับไปรายการ',
   view: 'ดู',
+  option: 'ตัวเลือก',
+  points: 'คะแนนรวม',
+  colRegion: 'ส่วนร่างกาย',
+  colPeople: 'จำนวนคน',
+  colYear: '12 เดือน "ใช่"',
+  colWeek: '7 วัน "ใช่"',
+  colSev: 'ความรุนแรงเฉลี่ย (0–10)',
+  colPoint: 'จุด',
+  colSevAvg: 'ความรุนแรงเฉลี่ย',
+  colTypes: 'ประเภทปัญหา 3 อันดับแรก',
+  colParts: 'ส่วนของเก้าอี้ 3 อันดับแรก',
   blank: '—',
   wip: 'กำลังพัฒนา'
 };
@@ -153,6 +164,7 @@ App.data.admin = {
 
   function tabView() {
     if (state.tab === 'overview') return V.overview(state.summary, state.heatTab);
+    if (state.tab === 'questions') return V.questions(state.summary, state.qRole);
     return placeholder(state.tab);
   }
 
@@ -215,6 +227,8 @@ App.data.admin = {
     const a = el.dataset.action;
     if (a === 'tab') { state.tab = el.dataset.value; render(); }
     if (a === 'heattab') { state.heatTab = el.dataset.value; render(); }
+    if (a === 'qrole') { state.qRole = el.dataset.value; render(); }
+    if (a === 'gocomments') { state.tab = 'comments'; state.comments.key = el.dataset.key; render(); }
     if (a === 'refresh') refresh();
     if (a === 'csv') downloadCSV();
     if (a === 'logout') api.call('POST', '/api/admin/logout').catch(function () {}).then(function () { state.summary = null; show(loginView()); });
