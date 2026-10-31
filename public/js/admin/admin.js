@@ -1,17 +1,23 @@
-// หน้าสรุปผลจากข้อมูลจริง (อ่านผลสรุปจาก cache ผ่าน /api/admin/*)
+// โครงหน้าแอดมิน: ข้อความ, เข้าสู่ระบบ, แท็บ, state และ CSV (มุมมองแต่ละแท็บอยู่ใน overview.js ฯลฯ)
 // ไฟล์นี้ไม่แตะ DOM ตอนโหลด — admin.html เรียก App.admin.boot()
 window.App = window.App || {};
 App.data = App.data || {};
 
 App.data.admin = {
   title: 'สรุปผล',
+  tabs: { overview: 'ภาพรวม', questions: 'คำถามทั้งหมด', comments: 'ความคิดเห็น', people: 'รายคน' },
   heatTitle: 'Heatmap จุดปัญหาบนผัง (ตัวเลข = จำนวนผู้ระบุ, สีเข้ม = คะแนนเฉลี่ยสูง)',
   bodyTitle: 'ตำแหน่งอาการปวดเมื่อย (จำนวนคน)',
   rankTitle: 'อันดับสิ่งที่อยากให้แก้ก่อน (คะแนนรวม)',
+  dailyTitle: 'จำนวนคำตอบรายวัน',
   staffTab: 'เจ้าหน้าที่',
   donorTab: 'ผู้บริจาค',
+  statTotal: 'คำตอบทั้งหมด',
+  statToday: 'วันนี้',
+  statSrc1: 'เข้าทางสำรอง',
   empty: 'ยังไม่มีข้อมูล',
   more: 'มีข้อมูลใหม่อีก กดอัปเดต',
+  loading: 'กำลังรวมข้อมูล… {n}',
   refresh: 'อัปเดต',
   csv: 'ดาวน์โหลด CSV',
   logout: 'ออกจากระบบ',
@@ -25,73 +31,43 @@ App.data.admin = {
   quotaWrite: 'แถวที่เขียน',
   quotaRead: 'แถวที่อ่าน',
   updated: 'อัปเดตล่าสุด',
-  count: 'คำตอบ'
+  count: 'คำตอบ',
+  mean: 'ค่าเฉลี่ย',
+  median: 'มัธยฐาน',
+  min: 'ต่ำสุด',
+  max: 'สูงสุด',
+  rank1: 'อันดับ 1 (คน)',
+  multiNote: 'เลือกได้หลายข้อ ผลรวมเกิน 100% ได้',
+  answeredOf: 'ตอบ {n} จาก {m} คน',
+  commentsN: '{n} ความคิดเห็น',
+  noMsdN: 'ไม่มีอาการ {n} คน',
+  noMapN: 'ไม่พบปัญหา {n} คน',
+  mapNotes: 'หมายเหตุจุดบนผัง',
+  search: 'ค้นหา',
+  clear: 'ล้าง',
+  loadMore: 'โหลดเพิ่ม',
+  noComments: 'ไม่พบความคิดเห็น',
+  seePerson: 'ดูคำตอบทั้งหมดของคนนี้',
+  direct: 'ตรง',
+  fallback: 'ทางสำรอง',
+  all: 'ทั้งหมด',
+  newer: 'ใหม่กว่า',
+  older: 'เก่ากว่า',
+  back: 'กลับไปรายการ',
+  view: 'ดู',
+  blank: '—',
+  wip: 'กำลังพัฒนา'
 };
 
 (function () {
-  const BAR_MAX = 190; // px ของแท่งที่ยาวที่สุด
   const t = App.data.admin;
   const ui = App.ui;
-
-  function emptyNote() {
-    return '<p class="text-[13px] text-muted">' + ui.esc(t.empty) + '</p>';
-  }
-
-  function bars(rows) {
-    if (!rows || !rows.length) return emptyNote();
-    const max = Math.max.apply(null, rows.map(function (r) { return r[1]; })) || 1;
-    return '<ul class="space-y-2.5">' + rows.map(function (r) {
-      const w = Math.round((r[1] / max) * BAR_MAX);
-      return '<li class="flex items-center text-[13px]">' +
-        '<span class="w-[42%] shrink-0 pr-3 sm:w-[205px]">' + ui.esc(r[0]) + '</span>' +
-        '<span class="h-[15px] rounded-sm bg-blood" style="width:' + w + 'px;max-width:45%"></span>' +
-        '<span class="ml-2">' + r[1] + '</span></li>';
-    }).join('') + '</ul>';
-  }
+  const api = App.adminApi;
+  const V = App.adminViews;
+  const TABS = ['overview', 'questions', 'comments', 'people'];
 
   function bangkok(sec) {
     return new Date(sec * 1000).toLocaleString('sv-SE', { timeZone: 'Asia/Bangkok' });
-  }
-
-  function pct(n, of) {
-    return (Math.round((n / of) * 10000) / 100) + '%';
-  }
-
-  function quotaCard(u) {
-    const row = function (label, n, of) {
-      return '<li class="flex justify-between"><span>' + ui.esc(label) + '</span><span>' + n.toLocaleString('en-US') + ' / ' + of.toLocaleString('en-US') + ' (' + pct(n, of) + ')</span></li>';
-    };
-    return ui.card(ui.cardTitle(t.quotaTitle) +
-      '<ul class="space-y-1 text-[13px]">' + row(t.quotaWrite, u.rw, u.limits.rw) + row(t.quotaRead, u.rr, u.limits.rr) + '</ul>' +
-      '<p class="mt-2 text-[12px] text-muted">' + ui.esc(t.quotaNote) + '</p>');
-  }
-
-  function tabs(active) {
-    return '<div class="mb-4 flex gap-2">' + ['staff', 'donor'].map(function (r) {
-      return ui.pill(ui.esc(r === 'staff' ? t.staffTab : t.donorTab), r === active, { action: 'tab', value: r });
-    }).join('') + '</div>';
-  }
-
-  function view(s, tab) {
-    const r = s[tab];
-    const none = !r.n;
-    let cards = ui.card(ui.cardTitle(t.heatTitle) + (none ? emptyNote() : App.busMap.render({ mode: 'summary', heat: r.heat })));
-    if (tab === 'staff') {
-      cards += ui.card(ui.cardTitle(t.bodyTitle) + (none ? emptyNote() : App.bodyMap.render({ mode: 'summary', counts: r.body })));
-      cards += ui.card(ui.cardTitle(t.rankTitle) + (none ? emptyNote() : bars(r.rank)));
-    }
-    const head = '<p class="mb-4 text-[13px] text-muted">' +
-      ui.esc(t.staffTab) + ' ' + s.staff.n + ' ' + ui.esc(t.count) + ' · ' + ui.esc(t.donorTab) + ' ' + s.donor.n + ' ' + ui.esc(t.count) +
-      (s.updated ? ' · ' + ui.esc(t.updated) + ' ' + bangkok(s.updated) : '') + '</p>';
-    return ui.pageTitle(t.title) + head +
-      (s.more ? ui.callout(t.more) : '') +
-      tabs(tab) +
-      '<div class="space-y-4">' + cards + quotaCard(s.usage) + '</div>' +
-      '<div class="mt-4 flex flex-wrap gap-2">' +
-      ui.primaryButton(t.refresh, { action: 'refresh' }) +
-      ui.secondaryButton(t.csv, { action: 'csv' }) +
-      ui.secondaryButton(t.logout, { action: 'logout' }) +
-      '</div>';
   }
 
   // ---------- CSV ----------
@@ -132,8 +108,14 @@ App.data.admin = {
 
   // ---------- DOM ----------
   let root;
-  let summary = null;
-  let tab = 'staff';
+  const state = {
+    summary: null,
+    tab: 'overview',
+    heatTab: 'staff',
+    qRole: 'staff',
+    comments: { key: null, q: '', items: [], next: null, loading: false, error: false },
+    people: { role: '', rows: null, next: null, stack: [], detail: undefined }
+  };
 
   function loginView(message) {
     return ui.pageTitle(t.title) + ui.card(
@@ -147,29 +129,52 @@ App.data.admin = {
 
   function show(html) { root.innerHTML = html; }
 
-  async function call(method, url, body) {
-    const r = await fetch(url, {
-      method: method,
-      credentials: 'same-origin',
-      headers: body ? { 'content-type': 'application/json' } : {},
-      body: body ? JSON.stringify(body) : undefined
-    });
-    // อ่าน body ให้จบเสมอ (ถ้าไม่อ่าน เบราว์เซอร์จะค้างการเชื่อมต่อของคำตอบ 401 ไว้)
-    const text = await r.text();
-    if (r.status === 401) throw Object.assign(new Error('auth'), { auth: true });
-    if (!r.ok) throw new Error('http ' + r.status);
-    return text ? JSON.parse(text) : null;
+  function fill(s, vars) {
+    return s.replace(/\{(\w+)\}/g, function (_, k) { return vars[k]; });
+  }
+
+  function tabBar() {
+    return '<div class="mb-4 flex flex-wrap gap-2" role="group">' + TABS.map(function (k) {
+      return ui.pill(ui.esc(t.tabs[k]), state.tab === k, { action: 'tab', value: k });
+    }).join('') + '</div>';
+  }
+
+  function toolbar() {
+    return '<div class="mb-4 flex flex-wrap gap-2">' +
+      ui.primaryButton(t.refresh, { action: 'refresh' }) +
+      ui.secondaryButton(t.csv, { action: 'csv' }) +
+      ui.secondaryButton(t.logout, { action: 'logout' }) +
+      '</div>';
+  }
+
+  function placeholder(key) {
+    return '<h2 class="mb-3 text-[17px] font-bold">' + ui.esc(t.tabs[key]) + '</h2><p class="text-[13px] text-muted">' + ui.esc(t.wip) + '</p>';
+  }
+
+  function tabView() {
+    if (state.tab === 'overview') return V.overview(state.summary, state.heatTab);
+    return placeholder(state.tab);
+  }
+
+  function render() {
+    show(ui.pageTitle(t.title) + toolbar() + '<p id="status" class="mb-3 text-[13px] text-muted" role="status"></p>' + tabBar() + '<div id="view">' + tabView() + '</div>');
+  }
+
+  function status(text) {
+    const el = document.getElementById('status');
+    if (el) el.textContent = text;
+    else show('<p class="text-[13px] text-muted" role="status">' + ui.esc(text) + '</p>');
   }
 
   function failed(e) {
-    if (e.auth) { summary = null; show(loginView()); return; }
+    if (e && e.auth) { state.summary = null; show(loginView()); return; }
     show(loginView(t.error));
   }
 
   async function refresh() {
     try {
-      summary = await call('GET', '/api/admin/summary');
-      show(view(summary, tab));
+      state.summary = await api.summaryAll(function (n) { status(fill(t.loading, { n: n })); });
+      render();
     } catch (e) {
       failed(e);
     }
@@ -180,7 +185,7 @@ App.data.admin = {
       let rows = [];
       let after = 0;
       for (let i = 0; i < 1000; i++) {
-        const page = await call('GET', '/api/admin/responses?after=' + after + '&limit=200');
+        const page = await api.call('GET', '/api/admin/responses?after=' + after + '&limit=200');
         rows = rows.concat(page.rows);
         if (page.next === null) break;
         after = page.next;
@@ -201,8 +206,18 @@ App.data.admin = {
       method: 'POST', credentials: 'same-origin',
       headers: { 'content-type': 'application/json' }, body: JSON.stringify({ password: password })
     });
+    await r.text();
     if (r.status === 204) return refresh();
     show(loginView(r.status === 429 ? t.rate : t.wrong));
+  }
+
+  function onClick(el) {
+    const a = el.dataset.action;
+    if (a === 'tab') { state.tab = el.dataset.value; render(); }
+    if (a === 'heattab') { state.heatTab = el.dataset.value; render(); }
+    if (a === 'refresh') refresh();
+    if (a === 'csv') downloadCSV();
+    if (a === 'logout') api.call('POST', '/api/admin/logout').catch(function () {}).then(function () { state.summary = null; show(loginView()); });
   }
 
   function boot() {
@@ -214,15 +229,10 @@ App.data.admin = {
     });
     root.addEventListener('click', function (ev) {
       const el = ev.target.closest('[data-action]');
-      if (!el) return;
-      const a = el.dataset.action;
-      if (a === 'tab') { tab = el.dataset.value; show(view(summary, tab)); }
-      if (a === 'refresh') refresh();
-      if (a === 'csv') downloadCSV();
-      if (a === 'logout') call('POST', '/api/admin/logout').catch(function () {}).then(function () { summary = null; show(loginView()); });
+      if (el) onClick(el);
     });
     refresh();
   }
 
-  App.admin = { bars: bars, view: view, toCSV: toCSV, boot: boot };
+  App.admin = { toCSV: toCSV, boot: boot };
 })();

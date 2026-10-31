@@ -4,6 +4,7 @@ export default {
     extend: {
       colors: {
         blood: { DEFAULT: '#b83227', dark: '#9c2a20' },
+        donor: '#2f6fbf', // สีผู้บริจาคในกราฟ (ผ่าน validate_palette คู่กับ blood)
         cream: '#f8f3f0',
         line: '#ebe2de',
         track: '#e6d6d4',

@@ -63,7 +63,8 @@ test('admin page shows the real counts', async ({ page }) => {
   await page.goto('/admin.html');
   await page.getByLabel('รหัสผ่าน').fill(DEV.ADMIN_PASSWORD);
   await page.getByText('เข้าสู่ระบบ', { exact: true }).click();
-  await expect(page.getByText('เจ้าหน้าที่ 1 คำตอบ · ผู้บริจาค 1 คำตอบ', { exact: false })).toBeVisible();
+  await expect(page.locator('[data-stat="staff"] [data-value]')).toHaveText('1');
+  await expect(page.locator('[data-stat="donor"] [data-value]')).toHaveText('1');
   await expect(page.getByText('ซ่อนสาย')).toBeVisible();
 });
 
