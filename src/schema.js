@@ -79,3 +79,9 @@ export const ZONE_PARTS = ['พนักพิง', 'เบาะนั่ง', 
 export const MSD_YN = ['ใช่', 'ไม่'];
 
 export const LIMITS = { bodyBytes: 16384, dataBytes: 13824, textarea: 2000, note: 500, numberMax: 9999 };
+
+// ข้อความยาวของแต่ละบทบาทตามลำดับในแบบสอบถาม (ใช้กับหน้าความคิดเห็นของแอดมิน)
+export const TEXT_KEYS = {
+  staff: Object.keys(SCHEMA.staff.answers).filter((k) => SCHEMA.staff.answers[k].type === 'textarea'),
+  donor: Object.keys(SCHEMA.donor.answers).filter((k) => SCHEMA.donor.answers[k].type === 'textarea')
+};
