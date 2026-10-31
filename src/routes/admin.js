@@ -7,6 +7,7 @@ import { allow } from '../ratelimit.js';
 import { createMeter } from '../meter.js';
 import { dayKey, bumpUsage } from '../store.js';
 import { emptyAcc, mergeRows, present } from '../summary.js';
+import { TEXT_KEYS } from '../schema.js';
 
 const MAX_AGE = 28800; // 8 ชั่วโมง
 const SUMMARY_BATCH = 100;
@@ -107,4 +108,63 @@ adminRoutes.get('/responses', async (c) => {
   const rows = (await m.run(stmt)).results.map((r) => ({ ...r, data: JSON.parse(r.data) }));
   await bumpUsage(db, m, 0);
   return c.json({ rows, next: rows.length === limit ? rows[rows.length - 1].id : null });
+});
+
+const COMMENT_KEYS = new Set([...TEXT_KEYS.staff, ...TEXT_KEYS.donor, 'map']);
+const COMMENT_LIMIT = 100;
+const Q_MAX = 100;
+
+// พารามิเตอร์ที่เป็นจำนวนเต็มบวก: ไม่ใส่ → ค่าเริ่มต้น, ผิดรูป → NaN
+function posInt(v, dflt) {
+  if (v === undefined) return dflt;
+  const n = Number(v);
+  return /^[0-9]+$/.test(v) && Number.isSafeInteger(n) && n >= 1 ? n : NaN;
+}
+
+adminRoutes.get('/comments', async (c) => {
+  const key = c.req.query('key');
+  const role = c.req.query('role');
+  const before = posInt(c.req.query('before'), Number.MAX_SAFE_INTEGER);
+  const limit = posInt(c.req.query('limit'), 50);
+  const q = (c.req.query('q') || '').trim();
+  if (!COMMENT_KEYS.has(key)) return c.json({ error: 'invalid', field: 'key' }, 400);
+  if (role !== undefined && role !== 'staff' && role !== 'donor') return c.json({ error: 'invalid', field: 'role' }, 400);
+  if (Number.isNaN(before)) return c.json({ error: 'invalid', field: 'before' }, 400);
+  if (Number.isNaN(limit) || limit > COMMENT_LIMIT) return c.json({ error: 'invalid', field: 'limit' }, 400);
+  if (q.length > Q_MAX) return c.json({ error: 'invalid', field: 'q' }, 400);
+
+  const db = c.env.DB;
+  const m = createMeter();
+  const roleSql = role ? ' AND role = ?' : '';
+  const roleArg = role ? [role] : [];
+  // ค้นด้วย instr() เพื่อให้ % _ ' เป็นตัวอักษรธรรมดา (LIKE จะตีความ % และ _)
+  const qSql = q ? ' AND instr(txt, ?) > 0' : '';
+  const qArg = q ? [q] : [];
+  let items;
+  let next;
+
+  if (key !== 'map') {
+    const sql = 'SELECT id, role, created, txt AS text FROM (SELECT id, role, created, json_extract(data, ?) AS txt FROM responses WHERE id < ?' + roleSql + ')' +
+      " WHERE txt IS NOT NULL AND trim(txt) <> ''" + qSql + ' ORDER BY id DESC LIMIT ?';
+    items = (await m.run(db.prepare(sql).bind('$.answers.' + key, before, ...roleArg, ...qArg, limit))).results;
+    next = items.length === limit ? items[items.length - 1].id : null;
+  } else {
+    // แบ่งหน้าตามคน: ขั้นที่ 1 หา id ของคนที่มีหมายเหตุ (ตรงคำค้นถ้ามี) ขั้นที่ 2 ดึงหมายเหตุทุกจุดของคนเหล่านั้น
+    const noteCond = "txt IS NOT NULL AND trim(txt) <> ''" + qSql;
+    const step1 = 'SELECT id FROM responses WHERE id < ?' + roleSql +
+      " AND EXISTS (SELECT 1 FROM (SELECT json_extract(j.value, '$.n') AS txt FROM json_each(responses.data, '$.map') j) WHERE " + noteCond + ')' +
+      ' ORDER BY id DESC LIMIT ?';
+    const people = (await m.run(db.prepare(step1).bind(before, ...roleArg, ...qArg, limit))).results.map((r) => r.id);
+    if (people.length) {
+      const step2 = 'SELECT id, role, created, zone, txt AS text FROM (' +
+        "SELECT r.id, r.role, r.created, j.key AS zone, json_extract(j.value, '$.n') AS txt FROM responses r, json_each(r.data, '$.map') j" +
+        ' WHERE r.id IN (SELECT value FROM json_each(?))) WHERE ' + noteCond + ' ORDER BY id DESC, zone';
+      items = (await m.run(db.prepare(step2).bind(JSON.stringify(people), ...qArg))).results;
+    } else {
+      items = [];
+    }
+    next = people.length === limit ? people[people.length - 1] : null;
+  }
+  await bumpUsage(db, m, 0);
+  return c.json({ items: items.map((i) => (key === 'map' ? i : { id: i.id, role: i.role, created: i.created, text: i.text })), next });
 });
