@@ -190,3 +190,56 @@ describe('questions tab', () => {
     expect(html).toContain('data-action="qrole" data-value="staff"');
   });
 });
+
+describe('comments tab', () => {
+  const C = () => loadViews(['public/js/admin/comments.js']);
+
+  test('commentKeys lists long-text questions in survey order, then map notes', () => {
+    const keys = C().adminViews.commentKeys();
+    expect(keys.map((k) => k.key)).toEqual(['rowdiff', 'cleanspot', 'material', 'setup', 'faint', 'worry', 'other', 'improve', 'map']);
+    expect(keys.find((k) => k.key === 'improve').role).toBe('donor');
+    expect(keys.find((k) => k.key === 'map')).toMatchObject({ role: null, label: 'หมายเหตุจุดบนผัง' });
+    expect(keys.find((k) => k.key === 'other').label).toBe('ข้อเสนอแนะอื่น ๆ');
+  });
+
+  test('comment text is escaped, keeps line breaks and links to the person', () => {
+    const html = C().adminViews.comments({ key: 'other', q: '', items: [{ id: 1, role: 'staff', created: 0, text: '<script>alert(1)</script>\nบรรทัดสอง' }], next: null }, fixture());
+    expect(html).toContain('&lt;script&gt;');
+    expect(html).not.toContain('<script>alert');
+    expect(html).toContain('whitespace-pre-wrap');
+    expect(html).toContain('data-action="person" data-id="1"');
+    expect(html).toContain('ดูคำตอบทั้งหมดของคนนี้');
+  });
+
+  test('a search value with quotes is escaped inside the input', () => {
+    const html = C().adminViews.comments({ key: 'other', q: '"><img src=x onerror=alert(1)>', items: [], next: null }, fixture());
+    expect(html).not.toContain('<img');
+  });
+
+  test('no items shows the not-found message and no load-more button', () => {
+    const html = C().adminViews.comments({ key: 'other', q: '', items: [], next: null }, fixture());
+    expect(html).toContain('ไม่พบความคิดเห็น');
+    expect(html).not.toContain('data-action="cmore"');
+  });
+
+  test('next shows the load-more button', () => {
+    const html = C().adminViews.comments({ key: 'other', q: '', items: [{ id: 9, role: 'staff', created: 0, text: 'x' }], next: 9 }, fixture());
+    expect(html).toContain('data-action="cmore"');
+  });
+
+  test('map notes show the point name', () => {
+    const App = C();
+    const html = App.adminViews.comments({ key: 'map', q: '', items: [{ id: 4, role: 'staff', created: 0, zone: 'B1', text: 'เก้าอี้โยก' }], next: null }, fixture());
+    expect(html).toContain(App.data.findArea('B1').label);
+    expect(html).toContain('เก้าอี้โยก');
+  });
+
+  test('each question shows its comment count from the summary', () => {
+    const s = fixture();
+    s.staff.notes = 2;
+    s.donor.notes = 1;
+    const html = C().adminViews.comments({ key: 'other', q: '', items: [], next: null }, s);
+    expect(html).toMatch(/data-action="ckey" data-key="other"[^]*?data-count[^>]*>2</);
+    expect(html).toMatch(/data-action="ckey" data-key="map"[^]*?data-count[^>]*>3</);
+  });
+});

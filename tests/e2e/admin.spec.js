@@ -104,6 +104,7 @@ test('logout returns to the login form', async ({ page }) => {
 
 test('tabs switch between the four views', async ({ page }) => {
   await mockAdmin(page);
+  await mockComments(page);
   await page.goto('/admin.html');
   await login(page);
   await expect(page.getByText('จำนวนคำตอบรายวัน')).toBeVisible();
@@ -125,4 +126,84 @@ test('summary keeps loading while more is true', async ({ page }) => {
   await page.goto('/admin.html');
   await expect(page.getByText('จำนวนคำตอบรายวัน')).toBeVisible();
   expect(calls).toBe(2);
+});
+
+const C_PAGES = {
+  first: { items: [
+    { id: 9, role: 'staff', created: 1793383200, text: 'สายไฟพาดพื้น\nบรรทัดสอง' },
+    { id: 5, role: 'staff', created: 1793300000, text: 'ไม่มี' }
+  ], next: 5 },
+  second: { items: [{ id: 2, role: 'staff', created: 1793200000, text: 'ที่วางของน้อย' }], next: null },
+  search: { items: [{ id: 9, role: 'staff', created: 1793383200, text: 'สายไฟพาดพื้น' }], next: null }
+};
+
+async function mockComments(page) {
+  const urls = [];
+  await page.route('**/api/admin/comments*', (r) => {
+    const u = new URL(r.request().url());
+    urls.push(u.search);
+    const body = u.searchParams.get('q') ? C_PAGES.search : u.searchParams.get('before') ? C_PAGES.second : C_PAGES.first;
+    return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+  });
+  return urls;
+}
+
+test('comments: choose a question, load more, search', async ({ page }) => {
+  await mockAdmin(page, { summary: { ...SUMMARY, staff: { ...SUMMARY.staff, text: { other: 3 } } } });
+  const urls = await mockComments(page);
+  await page.goto('/admin.html');
+  await login(page);
+  await page.getByRole('button', { name: 'ความคิดเห็น', exact: true }).click();
+  const other = page.locator('[data-action="ckey"][data-key="other"]');
+  await expect(other).toContainText('3');
+  await other.click();
+  await expect(page.getByText('สายไฟพาดพื้น')).toBeVisible();
+  expect(urls.at(-1)).toContain('key=other');
+  expect(urls.at(-1)).toContain('role=staff');
+  await page.getByRole('button', { name: 'โหลดเพิ่ม', exact: true }).click();
+  await expect(page.getByText('ที่วางของน้อย')).toBeVisible();
+  await expect(page.getByText('ไม่มี', { exact: true })).toBeVisible();
+  expect(urls.at(-1)).toContain('before=5');
+  await expect(page.getByRole('button', { name: 'โหลดเพิ่ม', exact: true })).toHaveCount(0);
+  await page.getByRole('searchbox').fill('สาย');
+  await page.getByRole('button', { name: 'ค้นหา', exact: true }).click();
+  await expect(page.getByText('ที่วางของน้อย')).toHaveCount(0);
+  expect(urls.at(-1)).toContain('q=' + encodeURIComponent('สาย'));
+  await page.getByRole('button', { name: 'ล้าง', exact: true }).click();
+  await expect(page.getByRole('searchbox')).toHaveValue('');
+  expect(urls.at(-1)).not.toContain('q=');
+});
+
+test('question tab link opens that question in the comments tab', async ({ page }) => {
+  await mockAdmin(page, { summary: { ...SUMMARY, staff: { ...SUMMARY.staff, text: { other: 3 } } } });
+  const urls = await mockComments(page);
+  await page.goto('/admin.html');
+  await login(page);
+  await page.getByRole('button', { name: 'คำถามทั้งหมด', exact: true }).click();
+  await page.locator('[data-action="gocomments"][data-key="other"]').click();
+  await expect(page.getByText('สายไฟพาดพื้น')).toBeVisible();
+  expect(urls.at(-1)).toContain('key=other');
+});
+
+test('401 on load more returns to login', async ({ page }) => {
+  const state = await mockAdmin(page);
+  await mockComments(page);
+  await page.goto('/admin.html');
+  await login(page);
+  await page.getByRole('button', { name: 'ความคิดเห็น', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'โหลดเพิ่ม', exact: true })).toBeVisible();
+  state.authed = false;
+  await page.unroute('**/api/admin/comments*');
+  await page.route('**/api/admin/comments*', (r) => r.fulfill({ status: 401, contentType: 'application/json', body: '{"error":"auth"}' }));
+  await page.getByRole('button', { name: 'โหลดเพิ่ม', exact: true }).click();
+  await expect(page.getByLabel('รหัสผ่าน')).toBeVisible();
+});
+
+test('401 when opening the comments tab returns to login', async ({ page }) => {
+  await mockAdmin(page);
+  await page.route('**/api/admin/comments*', (r) => r.fulfill({ status: 401, contentType: 'application/json', body: '{"error":"auth"}' }));
+  await page.goto('/admin.html');
+  await login(page);
+  await page.getByRole('button', { name: 'ความคิดเห็น', exact: true }).click();
+  await expect(page.getByLabel('รหัสผ่าน')).toBeVisible();
 });

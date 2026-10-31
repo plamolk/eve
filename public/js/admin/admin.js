@@ -76,6 +76,7 @@ App.data.admin = {
   const api = App.adminApi;
   const V = App.adminViews;
   const TABS = ['overview', 'questions', 'comments', 'people'];
+  const PAGE = 50;
 
   function bangkok(sec) {
     return new Date(sec * 1000).toLocaleString('sv-SE', { timeZone: 'Asia/Bangkok' });
@@ -124,7 +125,7 @@ App.data.admin = {
     tab: 'overview',
     heatTab: 'staff',
     qRole: 'staff',
-    comments: { key: null, q: '', items: [], next: null, loading: false, error: false },
+    comments: { key: null, q: '', items: [], next: null, loading: false, error: false, loaded: false, ticket: 0 },
     people: { role: '', rows: null, next: null, stack: [], detail: undefined }
   };
 
@@ -165,6 +166,7 @@ App.data.admin = {
   function tabView() {
     if (state.tab === 'overview') return V.overview(state.summary, state.heatTab);
     if (state.tab === 'questions') return V.questions(state.summary, state.qRole);
+    if (state.tab === 'comments') return V.comments(state.comments, state.summary);
     return placeholder(state.tab);
   }
 
@@ -213,6 +215,39 @@ App.data.admin = {
     }
   }
 
+  // ---------- ความคิดเห็น ----------
+  async function loadComments(more) {
+    const c = state.comments;
+    const k = V.commentKeys().filter(function (x) { return x.key === c.key; })[0];
+    if (!k) return;
+    const ticket = ++c.ticket; // คำตอบที่มาช้ากว่าการกดครั้งใหม่จะถูกทิ้ง
+    c.loading = true;
+    c.error = false;
+    if (!more) { c.items = []; c.next = null; }
+    render();
+    try {
+      const page = await api.comments({ key: c.key, role: k.role || undefined, q: c.q, before: more ? c.next : undefined, limit: PAGE });
+      if (ticket !== c.ticket) return;
+      c.items = more ? c.items.concat(page.items) : page.items;
+      c.next = page.next;
+      c.loaded = true;
+    } catch (e) {
+      if (ticket !== c.ticket) return;
+      if (e.auth) { c.loading = false; failed(e); return; }
+      c.error = true;
+    }
+    c.loading = false;
+    if (state.tab === 'comments') render();
+  }
+
+  function openComments(key) {
+    const c = state.comments;
+    state.tab = 'comments';
+    c.key = key || c.key || V.commentKeys()[0].key;
+    c.q = '';
+    loadComments(false);
+  }
+
   async function login(password) {
     const r = await fetch('/api/admin/login', {
       method: 'POST', credentials: 'same-origin',
@@ -225,10 +260,16 @@ App.data.admin = {
 
   function onClick(el) {
     const a = el.dataset.action;
-    if (a === 'tab') { state.tab = el.dataset.value; render(); }
+    if (a === 'tab') {
+      if (el.dataset.value === 'comments' && !state.comments.loaded) return openComments();
+      state.tab = el.dataset.value;
+      render();
+    }
     if (a === 'heattab') { state.heatTab = el.dataset.value; render(); }
     if (a === 'qrole') { state.qRole = el.dataset.value; render(); }
-    if (a === 'gocomments') { state.tab = 'comments'; state.comments.key = el.dataset.key; render(); }
+    if (a === 'gocomments' || a === 'ckey') openComments(el.dataset.key);
+    if (a === 'cclear') { state.comments.q = ''; loadComments(false); }
+    if (a === 'cmore' && !state.comments.loading) loadComments(true);
     if (a === 'refresh') refresh();
     if (a === 'csv') downloadCSV();
     if (a === 'logout') api.call('POST', '/api/admin/logout').catch(function () {}).then(function () { state.summary = null; show(loginView()); });
@@ -237,9 +278,15 @@ App.data.admin = {
   function boot() {
     root = document.getElementById('app');
     root.addEventListener('submit', function (ev) {
-      if (ev.target.id !== 'login') return;
-      ev.preventDefault();
-      login(document.getElementById('pw').value);
+      if (ev.target.id === 'login') {
+        ev.preventDefault();
+        login(document.getElementById('pw').value);
+      }
+      if (ev.target.id === 'csearch') {
+        ev.preventDefault();
+        state.comments.q = ev.target.elements.q.value.trim();
+        loadComments(false);
+      }
     });
     root.addEventListener('click', function (ev) {
       const el = ev.target.closest('[data-action]');
