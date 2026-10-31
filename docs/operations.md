@@ -9,11 +9,11 @@
 
 ```
 npm install
-copy .dev.vars.example .dev.vars        # macOS/Linux: cp
 npx wrangler d1 migrations apply eve-survey --local
 npm run dev                              # http://localhost:8787  (build CSS ให้เองก่อนเริ่ม)
 ```
 
+- `npm run dev` จะสร้าง `.dev.vars` จาก `.dev.vars.example` ให้เองถ้ายังไม่มี (ถ้าไม่มีไฟล์นี้ Worker จะไม่มี Turnstile secret และทุกคำตอบจะได้ "ยืนยันตัวตนไม่สำเร็จ")
 - ในเครื่องจะใช้ Turnstile test key ให้อัตโนมัติ (sitekey `1x00000000000000000000AA`, secret `1x0000000000000000000000000000000AA`)
 - หน้าแอดมินในเครื่องใช้รหัสจาก `ADMIN_PASSWORD` ใน `.dev.vars`
 - ห้ามเปิดไฟล์ HTML ด้วยการดับเบิลคลิก ต้องเปิดผ่าน `npm run dev`
