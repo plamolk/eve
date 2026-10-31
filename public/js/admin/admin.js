@@ -136,7 +136,7 @@ App.data.admin = {
     heatTab: 'staff',
     qRole: 'staff',
     comments: { key: null, q: '', items: [], next: null, loading: false, error: false, loaded: false, ticket: 0 },
-    people: { role: '', rows: null, next: null, stack: [], cur: undefined, detail: undefined, loading: false, error: false, loaded: false, ticket: 0 }
+    people: { role: '', rows: null, next: null, stack: [], cur: undefined, detail: undefined, loading: false, error: false, loaded: false, ticket: 0, dticket: 0 }
   };
 
   function loginView(message) {
@@ -175,6 +175,7 @@ App.data.admin = {
     if (state.tab === 'comments') return V.comments(state.comments, state.summary);
     const p = state.people;
     if (p.detail === 'loading') return '';
+    if (p.detail === 'error') return V.person(null, true);
     if (p.detail !== undefined) return V.person(p.detail);
     return V.peopleList(p);
   }
@@ -189,15 +190,44 @@ App.data.admin = {
     else show('<p class="text-[13px] text-muted" role="status">' + ui.esc(text) + '</p>');
   }
 
+  // ทิ้งผลที่กำลังโหลดค้าง และให้รายการความคิดเห็น/รายคนโหลดใหม่ (หลัง 401 และเมื่อกดอัปเดต)
+  function resetLists() {
+    const c = state.comments;
+    const p = state.people;
+    c.ticket += 1;
+    c.loading = false;
+    c.loaded = false;
+    p.ticket += 1;
+    p.dticket += 1;
+    p.loading = false;
+    p.loaded = false;
+    p.stack = [];
+    p.cur = undefined;
+    if (p.detail === 'loading') p.detail = undefined;
+  }
+
+  function loadCurrent() {
+    if (state.tab === 'comments' && !state.comments.loaded) loadComments(false);
+    if (state.tab === 'people' && !state.people.loaded) loadPeople(undefined);
+  }
+
   function failed(e) {
-    if (e && e.auth) { state.summary = null; show(loginView()); return; }
+    if (e && e.auth) {
+      state.summary = null;
+      resetLists();
+      state.people.detail = undefined;
+      show(loginView());
+      return;
+    }
     show(loginView(t.error));
   }
 
   async function refresh() {
     try {
       state.summary = await api.summaryAll(function (n) { status(fill(t.loading, { n: n })); });
+      resetLists();
       render();
+      loadCurrent();
     } catch (e) {
       failed(e);
     }
@@ -258,14 +288,18 @@ App.data.admin = {
   }
 
   // ---------- รายคน ----------
-  async function loadPeople(before) {
+  // move: 'older' / 'newer' ปรับ stack เมื่อโหลดสำเร็จเท่านั้น
+  async function loadPeople(before, move) {
     const p = state.people;
     const ticket = ++p.ticket;
+    const prev = p.cur;
     p.loading = true;
     p.error = false;
     try {
       const page = await api.responses({ before: before, role: p.role, limit: PAGE });
       if (ticket !== p.ticket) return;
+      if (move === 'older') p.stack.push(prev);
+      if (move === 'newer') p.stack.pop();
       p.rows = page.rows;
       p.next = page.next;
       p.cur = before;
@@ -282,6 +316,7 @@ App.data.admin = {
   function listPeople() {
     const p = state.people;
     state.tab = 'people';
+    p.dticket += 1; // คำตอบรายคนที่ยังโหลดไม่เสร็จจะไม่พากลับเข้าหน้ารายละเอียด
     p.detail = undefined;
     render();
     if (!p.loaded) loadPeople(undefined);
@@ -289,18 +324,18 @@ App.data.admin = {
 
   async function openPerson(id) {
     const p = state.people;
-    const ticket = ++p.ticket;
+    const ticket = ++p.dticket; // แยกจาก p.ticket ของรายการ เพื่อไม่ให้การเปิดคนตัดการโหลดหน้ารายการ
     state.tab = 'people';
     p.detail = 'loading';
     render();
     try {
       const res = await api.response(id);
-      if (ticket !== p.ticket) return;
+      if (ticket !== p.dticket) return;
       p.detail = res.row;
     } catch (e) {
-      if (ticket !== p.ticket) return;
+      if (ticket !== p.dticket) return;
       if (e.auth) { failed(e); return; }
-      p.detail = null; // 404 หรือโหลดไม่สำเร็จ → "ไม่พบคำตอบนี้"
+      p.detail = e.status === 404 ? null : 'error'; // 404 → "ไม่พบคำตอบนี้", อื่น ๆ → โหลดไม่สำเร็จ
     }
     if (state.tab === 'people') render();
   }
@@ -318,7 +353,11 @@ App.data.admin = {
   function onClick(el) {
     const a = el.dataset.action;
     if (a === 'tab') {
-      if (el.dataset.value === 'comments' && !state.comments.loaded) return openComments();
+      if (el.dataset.value === 'comments' && !state.comments.loaded) {
+        state.tab = 'comments';
+        if (!state.comments.key) state.comments.key = V.commentKeys()[0].key;
+        return loadComments(false);
+      }
       if (el.dataset.value === 'people') return listPeople();
       state.tab = el.dataset.value;
       render();
@@ -331,8 +370,8 @@ App.data.admin = {
     if (a === 'person') openPerson(el.dataset.id);
     if (a === 'peopleback') listPeople();
     if (a === 'prole') { state.people.role = el.dataset.value; state.people.stack = []; loadPeople(undefined); }
-    if (a === 'polder' && state.people.next !== null && !state.people.loading) { state.people.stack.push(state.people.cur); loadPeople(state.people.next); }
-    if (a === 'pnewer' && state.people.stack.length && !state.people.loading) loadPeople(state.people.stack.pop());
+    if (a === 'polder' && state.people.next !== null && !state.people.loading) loadPeople(state.people.next, 'older');
+    if (a === 'pnewer' && state.people.stack.length && !state.people.loading) loadPeople(state.people.stack[state.people.stack.length - 1], 'newer');
     if (a === 'refresh') refresh();
     if (a === 'csv') downloadCSV();
     if (a === 'logout') api.call('POST', '/api/admin/logout').catch(function () {}).then(function () { state.summary = null; show(loginView()); });

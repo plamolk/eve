@@ -279,3 +279,92 @@ test('missing person shows not found', async ({ page }) => {
   await page.getByRole('button', { name: 'กลับไปรายการ', exact: true }).click();
   await expect(page.locator('button[data-action="person"][data-id="3"]')).toBeVisible();
 });
+
+// ---------- final review fixes ----------
+test('paging still works after opening a person while a page was loading', async ({ page }) => {
+  await mockAdmin(page);
+  const urls = await mockPeople(page);
+  let release;
+  const held = new Promise((r) => { release = r; });
+  await page.route('**/api/admin/responses?*before=2*', async (r) => {
+    urls.push(new URL(r.request().url()).search);
+    await held;
+    return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(P_PAGES.second) });
+  });
+  await page.goto('/admin.html');
+  await login(page);
+  await page.getByRole('button', { name: 'รายคน', exact: true }).click();
+  await expect(page.locator('button[data-action="person"][data-id="3"]')).toBeVisible();
+  await page.getByRole('button', { name: 'เก่ากว่า', exact: true }).click();
+  await page.locator('button[data-action="person"][data-id="3"]').click();
+  await expect(page.getByText('ตำแหน่งงาน')).toBeVisible();
+  release();
+  await page.getByRole('button', { name: 'กลับไปรายการ', exact: true }).click();
+  await expect(page.locator('button[data-action="person"][data-id="1"]')).toBeVisible();
+  await page.getByRole('button', { name: 'ใหม่กว่า', exact: true }).click();
+  await expect(page.locator('button[data-action="person"][data-id="3"]')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'ใหม่กว่า', exact: true })).toBeDisabled();
+  await page.getByRole('button', { name: 'เก่ากว่า', exact: true }).click();
+  await expect(page.locator('button[data-action="person"][data-id="1"]')).toBeVisible();
+});
+
+test('after a 401 on the first comments load, logging in again loads the comments', async ({ page }) => {
+  await mockAdmin(page);
+  await mockComments(page);
+  let first = true;
+  await page.route('**/api/admin/comments*', (r) => {
+    if (!first) return r.fallback();
+    first = false;
+    return r.fulfill({ status: 401, contentType: 'application/json', body: '{"error":"auth"}' });
+  });
+  await page.goto('/admin.html');
+  await login(page);
+  await page.getByRole('button', { name: 'ความคิดเห็น', exact: true }).click();
+  await expect(page.getByLabel('รหัสผ่าน')).toBeVisible();
+  await login(page);
+  await expect(page.getByText('สายไฟพาดพื้น')).toBeVisible();
+  await expect(page.getByText('ไม่พบความคิดเห็น')).toHaveCount(0);
+});
+
+test('after a 401 while opening a person, logging in again shows the people list', async ({ page }) => {
+  await mockAdmin(page);
+  await mockPeople(page);
+  let first = true;
+  await page.route('**/api/admin/responses/*', (r) => {
+    if (!first) return r.fallback();
+    first = false;
+    return r.fulfill({ status: 401, contentType: 'application/json', body: '{"error":"auth"}' });
+  });
+  await page.goto('/admin.html');
+  await login(page);
+  await page.getByRole('button', { name: 'รายคน', exact: true }).click();
+  await page.locator('button[data-action="person"][data-id="3"]').click();
+  await expect(page.getByLabel('รหัสผ่าน')).toBeVisible();
+  await login(page);
+  await expect(page.locator('button[data-action="person"][data-id="3"]')).toBeVisible();
+});
+
+test('the refresh button reloads the people list', async ({ page }) => {
+  await mockAdmin(page);
+  await mockPeople(page);
+  await page.goto('/admin.html');
+  await login(page);
+  await page.getByRole('button', { name: 'รายคน', exact: true }).click();
+  await expect(page.locator('button[data-action="person"][data-id="3"]')).toBeVisible();
+  await page.route('**/api/admin/responses?*', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ rows: [{ ...STAFF_ROW, id: 4 }, STAFF_ROW], next: null }) }));
+  await page.getByText('อัปเดต', { exact: true }).click();
+  await expect(page.locator('button[data-action="person"][data-id="4"]')).toBeVisible();
+});
+
+test('a failed person lookup that is not a 404 says loading failed, not "not found"', async ({ page }) => {
+  await mockAdmin(page);
+  await mockPeople(page);
+  await page.route('**/api/admin/responses/*', (r) => r.fulfill({ status: 500, contentType: 'application/json', body: '{"error":"server"}' }));
+  await page.goto('/admin.html');
+  await login(page);
+  await page.getByRole('button', { name: 'รายคน', exact: true }).click();
+  await page.locator('button[data-action="person"][data-id="3"]').click();
+  await expect(page.getByText('โหลดข้อมูลไม่สำเร็จ ลองกดอัปเดตอีกครั้ง')).toBeVisible();
+  await expect(page.getByText('ไม่พบคำตอบนี้')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'กลับไปรายการ', exact: true })).toBeVisible();
+});

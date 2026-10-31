@@ -97,9 +97,10 @@ App.adminViews = App.adminViews || {};
     return table([t.colPoint, t.colType, t.colPart, t.colSevOne, t.colNote], rows, 'min-w-[600px]'); // กว้างพอให้อ่านได้ บนมือถือเลื่อนแนวนอน
   }
 
-  function person(row) {
+  // row = null → ไม่พบคำตอบ (404), loadFailed = true → โหลดไม่สำเร็จ
+  function person(row, loadFailed) {
     const t = T();
-    if (!row) return heading(t.tabs.people) + '<p class="mb-4 text-[14px]">' + ui.esc(t.notFound) + '</p>' + backButton();
+    if (!row) return heading(t.tabs.people) + '<p class="mb-4 text-[14px]"' + (loadFailed ? ' role="alert"' : '') + '>' + ui.esc(loadFailed ? t.error : t.notFound) + '</p>' + backButton();
     const data = row.data || {};
     const answers = own(data, 'answers') ? data.answers : {};
     const sections = App.data.sections[row.role] || [];
